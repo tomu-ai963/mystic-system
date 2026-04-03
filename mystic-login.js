@@ -2,7 +2,7 @@
 // MYSTIC SYSTEM — mystic-login.js
 // ============================================
 
-const WORKER_URL = "https://mystic-system-worker.tomu-ai963.workers.dev";
+const WORKER_URL = "https://mystic-system-worker.inverted-triangle-leef.workers.dev";
 
 const MysticAuth = {
   // ローカルストレージのキー
