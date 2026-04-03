@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>今日の開運カラー — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🎨</span>
+    <h1 class="app-title">今日の開運カラー</h1>
+    <p class="app-desc">今日あなたに最も幸運をもたらす色と、その使い方を教えます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>生年月日</label>
+      <input type="date" id="birthdate"/>
+    </div>
+    <div class="field-group">
+      <label>診断する日付</label>
+      <input type="date" id="target-date"/>
+    </div>
+    <button class="submit-btn" id="submit-btn">開運カラーを教えてもらう</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ 今日の開運カラー</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>{
+  document.getElementById("app").style.display="block";
+  document.getElementById("target-date").value=new Date().toISOString().split("T")[0];
+};
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const birthdate=document.getElementById("birthdate").value;
+  const targetDate=document.getElementById("target-date").value;
+  if(!birthdate||!targetDate){alert("生年月日と日付を入力してください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="色の運気を読んでいます...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/lucky-color",{birthdate,targetDate});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="開運カラーを教えてもらう";}
+});
+</script>
+</body>
+</html>

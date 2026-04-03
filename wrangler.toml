@@ -1,0 +1,7 @@
+name = "mystic-system-worker"
+main = "mystic-system-worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "MYSTIC_SUBSCRIPTIONS"
+id = "5e1c00cba16d46119b2123dc4dd23322"

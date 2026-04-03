@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>縁結び相性診断 — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">💫</span>
+    <h1 class="app-title">縁結び相性診断</h1>
+    <p class="app-desc">2つの魂の縁と、共に歩む意味を宇宙の視点から読み解きます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>あなたの生年月日</label>
+      <input type="date" id="birthdate1"/>
+    </div>
+    <div class="field-group">
+      <label>相手の生年月日</label>
+      <input type="date" id="birthdate2"/>
+    </div>
+    <button class="submit-btn" id="submit-btn">魂の縁を読む</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ 2つの魂の縁</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const b1=document.getElementById("birthdate1").value;
+  const b2=document.getElementById("birthdate2").value;
+  if(!b1||!b2){alert("2人の生年月日を入力してください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="魂の縁を読んでいます...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/soul-compatibility",{birthdate1:b1,birthdate2:b2});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="魂の縁を読む";}
+});
+</script>
+</body>
+</html>

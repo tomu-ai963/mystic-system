@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ルーン占い — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">ᚱ</span>
+    <h1 class="app-title">ルーン占い</h1>
+    <p class="app-desc">北欧の古代文字ルーンが宇宙の意志を伝えます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>直感でルーンを一つ選んでください</label>
+      <div class="symbol-grid" id="rune-grid"></div>
+    </div>
+    <button class="submit-btn" id="submit-btn">ルーンのメッセージを受け取る</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ ルーンのお告げ</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+
+const RUNES=[
+  ["ᚠ","フェフ"],["ᚢ","ウルズ"],["ᚦ","スリサズ"],["ᚨ","アンスズ"],["ᚱ","ライドー"],["ᚲ","ケナズ"],
+  ["ᚷ","ゲボ"],["ᚹ","ウンジョ"],["ᚺ","ハガラズ"],["ᚾ","ナウシズ"],["ᛁ","イサ"],["ᛃ","イェラ"],
+  ["ᛇ","エイワズ"],["ᛈ","ペルソ"],["ᛉ","アルギズ"],["ᛊ","ソウィロ"],["ᛏ","ティワズ"],["ᛒ","ベルカナ"],
+  ["ᛖ","エワズ"],["ᛗ","マナズ"],["ᛚ","ラグズ"],["ᛜ","イングワズ"],["ᛞ","ダガズ"],["ᛟ","オサラ"]
+];
+
+let selected=null;
+const grid=document.getElementById("rune-grid");
+RUNES.forEach(([glyph,name])=>{
+  const btn=document.createElement("button");
+  btn.className="symbol-btn";
+  btn.innerHTML=`<span class="symbol-glyph">${glyph}</span>${name}`;
+  btn.addEventListener("click",()=>{
+    grid.querySelectorAll(".symbol-btn").forEach(b=>b.classList.remove("selected"));
+    btn.classList.add("selected");selected=`${glyph}（${name}）`;
+  });
+  grid.appendChild(btn);
+});
+
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  if(!selected){alert("ルーンを選んでください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="古代の声を聴いています...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/rune-reading",{rune:selected});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="ルーンのメッセージを受け取る";}
+});
+</script>
+</body>
+</html>

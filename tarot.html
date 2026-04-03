@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>タロット一枚引き — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🃏</span>
+    <h1 class="app-title">タロット一枚引き</h1>
+    <p class="app-desc">心を静め、直感で一枚のカードを選んでください</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>カードを一枚選んでください</label>
+      <div class="symbol-grid" id="tarot-grid"></div>
+    </div>
+    <button class="submit-btn" id="submit-btn">カードのメッセージを受け取る</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ タロットのメッセージ</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+
+const CARDS=[
+  ["愚者","0"],["魔術師","I"],["女教皇","II"],["女帝","III"],["皇帝","IV"],["教皇","V"],
+  ["恋人たち","VI"],["戦車","VII"],["力","VIII"],["隠者","IX"],["運命の輪","X"],["正義","XI"],
+  ["吊るされた男","XII"],["死神","XIII"],["節制","XIV"],["悪魔","XV"],["塔","XVI"],["星","XVII"],
+  ["月","XVIII"],["太陽","XIX"],["審判","XX"],["世界","XXI"]
+];
+
+let selected=null;
+const grid=document.getElementById("tarot-grid");
+CARDS.forEach(([name,num])=>{
+  const btn=document.createElement("button");
+  btn.className="symbol-btn";
+  btn.innerHTML=`<span class="symbol-glyph" style="font-size:.9rem">${num}</span>${name}`;
+  btn.addEventListener("click",()=>{
+    grid.querySelectorAll(".symbol-btn").forEach(b=>b.classList.remove("selected"));
+    btn.classList.add("selected");selected=name;
+  });
+  grid.appendChild(btn);
+});
+
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  if(!selected){alert("カードを選んでください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="カードを読んでいます...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/tarot",{card:selected});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="カードのメッセージを受け取る";}
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>オーラカラー診断 — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🌈</span>
+    <h1 class="app-title">オーラカラー診断</h1>
+    <p class="app-desc">今のあなたを包むオーラの色と魂の状態を読み解きます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>今のエネルギー状態は？</label>
+      <div class="options-grid" id="q1-grid"></div>
+    </div>
+    <div class="field-group">
+      <label>直感的に引き寄せられる色は？（複数可）</label>
+      <div class="options-grid" id="q2-grid"></div>
+    </div>
+    <div class="field-group">
+      <label>今最も強く感じている感情は？</label>
+      <div class="options-grid" id="q3-grid"></div>
+    </div>
+    <button class="submit-btn" id="submit-btn">オーラを視る</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ あなたのオーラカラー</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+
+function makeSingle(gid,opts,cb){
+  const g=document.getElementById(gid);
+  opts.forEach(o=>{
+    const btn=document.createElement("button");
+    btn.className="opt-btn";btn.textContent=o;
+    btn.addEventListener("click",()=>{
+      g.querySelectorAll(".opt-btn").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");cb(o);
+    });
+    g.appendChild(btn);
+  });
+}
+function makeMulti(gid,opts,cb){
+  const g=document.getElementById(gid);const sel=new Set();
+  opts.forEach(o=>{
+    const btn=document.createElement("button");
+    btn.className="opt-btn";btn.textContent=o;
+    btn.addEventListener("click",()=>{
+      btn.classList.toggle("selected");
+      sel.has(o)?sel.delete(o):sel.add(o);
+      cb([...sel]);
+    });
+    g.appendChild(btn);
+  });
+}
+
+let a1=null,a2=[],a3=null;
+makeSingle("q1-grid",["満ち溢れている","安定している","少し疲れている","混乱している","変容の途中"],v=>a1=v);
+makeMulti("q2-grid",["赤","橙","黄","緑","青","紫","白","金","ピンク","ターコイズ"],v=>a2=v);
+makeSingle("q3-grid",["愛と喜び","平和と静けさ","情熱と好奇心","不安と迷い","変化への期待"],v=>a3=v);
+
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  if(!a1||a2.length===0||!a3){alert("すべての質問に答えてください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="オーラを視ています...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/aura-reading",{answers:{q1:a1,q2:a2.join("・"),q3:a3}});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="オーラを視る";}
+});
+</script>
+</body>
+</html>

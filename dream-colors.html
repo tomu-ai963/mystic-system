@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>夢の色彩診断 — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🎨</span>
+    <h1 class="app-title">夢の色彩診断</h1>
+    <p class="app-desc">夢に現れた色が潜在意識のメッセージを語ります</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>夢に出てきた色を選んでください（複数可）</label>
+      <div class="color-grid" id="color-grid"></div>
+    </div>
+    <div id="selected-colors" style="margin:.8rem 0;font-size:.82rem;color:var(--muted);min-height:1.4em"></div>
+    <button class="submit-btn" id="submit-btn">夢の色を解読する</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ 色彩の潜在メッセージ</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+
+const COLORS=[
+  {name:"赤",hex:"#e05050"},{name:"橙",hex:"#e08030"},{name:"黄",hex:"#e0c030"},
+  {name:"黄緑",hex:"#80c040"},{name:"緑",hex:"#30a060"},{name:"青緑",hex:"#30a0a0"},
+  {name:"青",hex:"#3060e0"},{name:"紫",hex:"#9040c0"},{name:"ピンク",hex:"#e060a0"},
+  {name:"白",hex:"#e0e0e0"},{name:"黒",hex:"#404040"},{name:"金",hex:"#d4a020"},
+  {name:"銀",hex:"#a0a0b0"},{name:"茶",hex:"#804020"}
+];
+
+const sel=new Set();
+const grid=document.getElementById("color-grid");
+const selLabel=document.getElementById("selected-colors");
+
+COLORS.forEach(c=>{
+  const dot=document.createElement("div");
+  dot.className="color-dot";
+  dot.style.background=c.hex;
+  dot.title=c.name;
+  dot.addEventListener("click",()=>{
+    dot.classList.toggle("selected");
+    sel.has(c.name)?sel.delete(c.name):sel.add(c.name);
+    selLabel.textContent=sel.size>0?"選択中："+[...sel].join("・"):"";
+  });
+  grid.appendChild(dot);
+});
+
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  if(sel.size===0){alert("色を一つ以上選んでください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="色を解読しています...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/dream-colors",{colors:[...sel]});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="夢の色を解読する";}
+});
+</script>
+</body>
+</html>

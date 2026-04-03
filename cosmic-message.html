@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>今日の宇宙メッセージ — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">✨</span>
+    <h1 class="app-title">今日の宇宙メッセージ</h1>
+    <p class="app-desc">今日この瞬間、宇宙があなたに届けたいメッセージがあります</p>
+  </div>
+  <div class="card">
+    <div style="text-align:center;padding:1.5rem 0 1rem">
+      <div style="font-size:.85rem;color:var(--muted)" id="today-date"></div>
+      <div style="font-size:1rem;color:var(--accent);letter-spacing:.2em;margin-top:.5rem">✦ 宇宙の意識と繋がる時 ✦</div>
+    </div>
+    <p style="color:var(--muted);font-size:.9rem;text-align:center;margin-bottom:1.5rem;line-height:1.9">
+      深呼吸をして、宇宙からの言葉を<br>静かに受け取る準備をしてください。
+    </p>
+    <button class="submit-btn" id="submit-btn">今日のメッセージを受け取る</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ 宇宙からの今日のメッセージ</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>{
+  document.getElementById("app").style.display="block";
+  const now=new Date();
+  document.getElementById("today-date").textContent=now.toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
+};
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="宇宙の声を受信しています...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/cosmic-message",{});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="今日のメッセージを受け取る";}
+});
+</script>
+</body>
+</html>

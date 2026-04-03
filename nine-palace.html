@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>九宮格診断 — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🔲</span>
+    <h1 class="app-title">九宮格診断</h1>
+    <p class="app-desc">9つの宮から直感で一つを選び、今の運気の流れを読みます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>生年月日</label>
+      <input type="date" id="birthdate"/>
+    </div>
+    <div class="field-group">
+      <label>直感で一つの宮を選んでください</label>
+      <div class="palace-grid" id="palace-grid">
+        <button class="palace-cell" data-palace="四緑木星（東南・風）"><span class="palace-num">四</span>東南・風<br>発展</button>
+        <button class="palace-cell" data-palace="九紫火星（南・火）"><span class="palace-num">九</span>南・火<br>名誉</button>
+        <button class="palace-cell" data-palace="二黒土星（西南・地）"><span class="palace-num">二</span>西南・地<br>育成</button>
+        <button class="palace-cell" data-palace="三碧木星（東・雷）"><span class="palace-num">三</span>東・雷<br>活動</button>
+        <button class="palace-cell" data-palace="五黄土星（中央・土）"><span class="palace-num">五</span>中央・土<br>変容</button>
+        <button class="palace-cell" data-palace="七赤金星（西・沢）"><span class="palace-num">七</span>西・沢<br>喜悦</button>
+        <button class="palace-cell" data-palace="八白土星（東北・山）"><span class="palace-num">八</span>東北・山<br>蓄積</button>
+        <button class="palace-cell" data-palace="一白水星（北・水）"><span class="palace-num">一</span>北・水<br>知恵</button>
+        <button class="palace-cell" data-palace="六白金星（西北・天）"><span class="palace-num">六</span>西北・天<br>リーダー</button>
+      </div>
+    </div>
+    <button class="submit-btn" id="submit-btn">宮のエネルギーを読む</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ 九宮のメッセージ</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+
+let selected=null;
+document.getElementById("palace-grid").querySelectorAll(".palace-cell").forEach(cell=>{
+  cell.addEventListener("click",()=>{
+    document.getElementById("palace-grid").querySelectorAll(".palace-cell").forEach(c=>c.classList.remove("selected"));
+    cell.classList.add("selected");selected=cell.dataset.palace;
+  });
+});
+
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const birthdate=document.getElementById("birthdate").value;
+  if(!birthdate||!selected){alert("生年月日と宮を選んでください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="気の流れを読んでいます...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/nine-palace",{birthdate,selectedPalace:selected});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="宮のエネルギーを読む";}
+});
+</script>
+</body>
+</html>

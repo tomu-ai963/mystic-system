@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>手相占い — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🤚</span>
+    <h1 class="app-title">手相占い</h1>
+    <p class="app-desc">手のひらの写真をアップロードすると、AIが手相を読み解きます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>手のひらの写真を選んでください</label>
+      <div class="upload-zone" id="upload-zone">
+        <span class="upload-icon">🤚</span>
+        <span class="upload-label">クリックして写真を選択<br><small>利き手の手のひらを明るく撮影してください</small></span>
+        <img id="upload-preview" alt="手相プレビュー"/>
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none"/>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;margin-bottom:1rem;font-size:.8rem;color:var(--muted);line-height:1.8">
+      <strong style="color:var(--accent)">撮影のコツ</strong><br>
+      ✦ 明るい場所で手のひらを開いて撮影<br>
+      ✦ 手全体が写るように<br>
+      ✦ ピントが合っているか確認
+    </div>
+    <button class="submit-btn" id="submit-btn">手相を読み解く</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ 手相鑑定結果</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="mystic-login.js"></script>
+<script>
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+
+const zone=document.getElementById("upload-zone");
+const fileInput=document.getElementById("file-input");
+const preview=document.getElementById("upload-preview");
+let imageBase64=null,mimeType=null;
+
+zone.addEventListener("click",()=>fileInput.click());
+zone.addEventListener("dragover",e=>{e.preventDefault();zone.style.borderColor="var(--accent)";});
+zone.addEventListener("dragleave",()=>zone.style.borderColor="");
+zone.addEventListener("drop",e=>{e.preventDefault();zone.style.borderColor="";handleFile(e.dataTransfer.files[0]);});
+fileInput.addEventListener("change",e=>handleFile(e.target.files[0]));
+
+function handleFile(file){
+  if(!file||!file.type.startsWith("image/")){alert("画像ファイルを選択してください");return;}
+  mimeType=file.type;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const dataUrl=e.target.result;
+    imageBase64=dataUrl.split(",")[1];
+    preview.src=dataUrl;
+    preview.style.display="block";
+    zone.classList.add("has-image");
+    zone.querySelector(".upload-icon").style.display="none";
+    zone.querySelector(".upload-label").style.display="none";
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  if(!imageBase64){alert("手のひらの写真を選んでください");return;}
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="手相を読んでいます...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{
+    const d=await MysticAuth.callApi("/mystic/palm-reading",{imageBase64,mimeType});
+    rt.textContent=d.result;
+  }
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="手相を読み解く";}
+});
+</script>
+</body>
+</html>
