@@ -1,20 +1,17 @@
 // ============================================
-// MYSTIC SYSTEM — mystic-login.js
+// MYSTIC SYSTEM — mystic-login.js（Stripe連携版）
 // ============================================
 
 const WORKER_URL = "https://mystic-system-worker.inverted-triangle-leef.workers.dev";
 
 const MysticAuth = {
-  // ローカルストレージのキー
   USER_ID_KEY: "mystic_user_id",
   SUBSCRIPTION_KEY: "mystic_subscription",
 
-  // 現在のユーザーIDを取得
   getUserId() {
     return localStorage.getItem(this.USER_ID_KEY);
   },
 
-  // メールアドレスをユーザーIDとして登録・ログイン
   async login(email) {
     if (!email || !email.includes("@")) {
       throw new Error("有効なメールアドレスを入力してください");
@@ -27,13 +24,11 @@ const MysticAuth = {
     return { userId, subscribed };
   },
 
-  // ログアウト
   logout() {
     localStorage.removeItem(this.USER_ID_KEY);
     localStorage.removeItem(this.SUBSCRIPTION_KEY);
   },
 
-  // サブスクリプション状態を確認（Workerに問い合わせ）
   async checkSubscription(userId) {
     try {
       const res = await fetch(`${WORKER_URL}/subscription/check`, {
@@ -48,31 +43,35 @@ const MysticAuth = {
     }
   },
 
-  // サブスクリプション登録
-  async register(userId, plan = "mystic") {
-    const res = await fetch(`${WORKER_URL}/subscription/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, plan }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      localStorage.setItem(this.SUBSCRIPTION_KEY, "active");
-    }
-    return data;
-  },
-
-  // ログイン状態かどうか
   isLoggedIn() {
     return !!this.getUserId();
   },
 
-  // サブスクリプションがアクティブか（キャッシュ確認）
   isSubscribed() {
     return localStorage.getItem(this.SUBSCRIPTION_KEY) === "active";
   },
 
-  // Worker APIを呼び出す共通関数
+  // Stripe Checkoutページへリダイレクト
+  async startCheckout() {
+    const userId = this.getUserId();
+    if (!userId) throw new Error("ログインが必要です");
+
+    const res = await fetch(`${WORKER_URL}/stripe/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        successUrl: `${location.origin}/mystic/?checkout=success`,
+        cancelUrl:  `${location.origin}/mystic/?checkout=cancel`,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.url) throw new Error(data.error || "決済ページの取得に失敗しました");
+    location.href = data.url;
+  },
+
+  // 各アプリからAI APIを呼ぶ共通関数
   async callApi(endpoint, body) {
     const userId = this.getUserId();
     if (!userId) throw new Error("ログインが必要です");
@@ -93,12 +92,11 @@ const MysticAuth = {
 };
 
 // ============================================
-// ログインUIの制御
+// ログインUI
 // ============================================
 
 function renderLoginModal() {
-  const existing = document.getElementById("mystic-login-modal");
-  if (existing) return;
+  if (document.getElementById("mystic-login-modal")) return;
 
   const modal = document.createElement("div");
   modal.id = "mystic-login-modal";
@@ -158,7 +156,13 @@ async function handleLoginClick() {
   }
 }
 
+// ============================================
+// サブスクリプションUI（Stripe連携）
+// ============================================
+
 function renderSubscriptionModal() {
+  if (document.getElementById("mystic-sub-modal")) return;
+
   const modal = document.createElement("div");
   modal.id = "mystic-sub-modal";
   modal.innerHTML = `
@@ -166,17 +170,20 @@ function renderSubscriptionModal() {
       <div class="mystic-modal-box">
         <div class="mystic-modal-star">☽</div>
         <h2 class="mystic-modal-title">サブスクリプション</h2>
-        <p class="mystic-modal-subtitle">月額プランで星の神秘へフルアクセス</p>
+        <p class="mystic-modal-subtitle">月額 ¥780 で全30アプリにフルアクセス</p>
         <ul class="mystic-plan-list">
           <li>✦ 星読み・タロット・数秘術</li>
           <li>✦ 守護星・魂の相性診断</li>
           <li>✦ 前世リーディング・夢解読</li>
           <li>✦ 月のジャーナル・宇宙のお告げ</li>
+          <li>✦ 手相占い（画像AI解析）</li>
         </ul>
+        <div class="mystic-price-badge">月額 ¥780（税込）</div>
         <button id="mystic-subscribe-btn" class="mystic-modal-btn">
-          今すぐ始める（デモ登録）
+          今すぐ始める ✦
         </button>
         <p id="mystic-sub-error" class="mystic-modal-error"></p>
+        <p class="mystic-modal-note">Stripeの安全な決済ページへ移動します</p>
       </div>
     </div>
   `;
@@ -184,22 +191,74 @@ function renderSubscriptionModal() {
 
   document.getElementById("mystic-subscribe-btn").addEventListener("click", async () => {
     const btn = document.getElementById("mystic-subscribe-btn");
+    const errEl = document.getElementById("mystic-sub-error");
     btn.disabled = true;
-    btn.textContent = "登録中...";
+    btn.textContent = "決済ページへ移動中...";
+    errEl.textContent = "";
 
     try {
-      await MysticAuth.register(MysticAuth.getUserId());
-      document.getElementById("mystic-sub-modal").remove();
-      onLoginSuccess();
+      await MysticAuth.startCheckout();
+      // startCheckout内でlocation.hrefが変わるのでここには到達しない
     } catch (err) {
-      document.getElementById("mystic-sub-error").textContent = err.message;
+      errEl.textContent = err.message;
       btn.disabled = false;
-      btn.textContent = "今すぐ始める（デモ登録）";
+      btn.textContent = "今すぐ始める ✦";
     }
   });
 }
 
-// ログイン後に呼ばれるコールバック（index.htmlから上書き可）
+// ============================================
+// Checkout完了後の処理（URLパラメータ確認）
+// ============================================
+
+async function handleCheckoutReturn() {
+  const params = new URLSearchParams(location.search);
+  const status = params.get("checkout");
+  if (!status) return false;
+
+  // URLからパラメータを除去
+  const cleanUrl = location.pathname;
+  history.replaceState({}, "", cleanUrl);
+
+  if (status === "success") {
+    // Webhookの処理を待つため少し待機してから再確認
+    await new Promise((r) => setTimeout(r, 2000));
+    const userId = MysticAuth.getUserId();
+    if (userId) {
+      const subscribed = await MysticAuth.checkSubscription(userId);
+      if (subscribed) {
+        localStorage.setItem("mystic_subscription", "active");
+        onLoginSuccess();
+        return true;
+      }
+    }
+    // まだWebhookが来ていない場合のメッセージ
+    showToast("決済を確認中です。少し経ってから再度ページを開いてください。");
+    return true;
+  }
+
+  if (status === "cancel") {
+    showToast("決済がキャンセルされました。");
+    renderSubscriptionModal();
+    return true;
+  }
+
+  return false;
+}
+
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.style.cssText = `
+    position:fixed; bottom:2rem; left:50%; transform:translateX(-50%);
+    background:#2d1b4e; color:#e8d5b7; padding:.8rem 1.5rem;
+    border-radius:8px; border:1px solid #7c4dff; font-size:.9rem;
+    z-index:9999; box-shadow:0 4px 20px rgba(124,77,255,.3);
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
+}
+
 function onLoginSuccess() {
   if (typeof window.onMysticLogin === "function") {
     window.onMysticLogin();
@@ -213,12 +272,18 @@ function onLoginSuccess() {
 // ============================================
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // Checkout戻り判定（successまたはcancel）
+  if (MysticAuth.isLoggedIn()) {
+    const handled = await handleCheckoutReturn();
+    if (handled) return;
+  }
+
   if (!MysticAuth.isLoggedIn()) {
     renderLoginModal();
     return;
   }
 
-  // サブスクリプション状態をWorkerで再確認
+  // Workerでサブスク状態を再確認
   const userId = MysticAuth.getUserId();
   const subscribed = await MysticAuth.checkSubscription(userId);
   localStorage.setItem("mystic_subscription", subscribed ? "active" : "inactive");

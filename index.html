@@ -71,8 +71,13 @@
 
 <script src="mystic-login.js"></script>
 <script>
-window.onMysticLogin = () => { document.getElementById("app").style.display = "block"; };
-document.getElementById("logout-btn").addEventListener("click", () => { MysticAuth.logout(); location.reload(); });
+window.onMysticLogin = () => {
+  document.getElementById("app").style.display = "block";
+};
+document.getElementById("logout-btn").addEventListener("click", () => {
+  MysticAuth.logout();
+  location.reload();
+});
 </script>
 </body>
 </html>
