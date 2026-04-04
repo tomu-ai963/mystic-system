@@ -186,7 +186,7 @@ async function handleStripeCheckout(request, env) {
     body: new URLSearchParams({
       "payment_method_types[]": "card",
       "mode": "subscription",
-      "line_items[0][price]": env.STRIPE_PRICE_ID,
+      "line_items[0][price]": env.MYSTIC_PRICE_ID,
       "line_items[0][quantity]": "1",
       "metadata[userId]": userId,
       "success_url": successUrl,
