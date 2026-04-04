@@ -125,6 +125,8 @@ export default {
 
       if (path === "/subscription/check")    return handleSubscriptionCheck(request, env);
       if (path === "/subscription/register") return handleSubscriptionRegister(request, env);
+      if (path === "/stripe/checkout")       return handleStripeCheckout(request, env);
+      if (path === "/webhook")               return handleStripeWebhook(request, env);
 
       return jsonResponse({ error: "Not Found" }, 404);
 
@@ -165,6 +167,95 @@ async function handleSubscriptionRegister(request, env) {
     createdAt: new Date().toISOString(),
   }));
   return jsonResponse({ success: true });
+}
+
+// ============================================
+// Stripe Checkout セッション作成
+// ============================================
+
+async function handleStripeCheckout(request, env) {
+  const { userId, successUrl, cancelUrl } = await request.json();
+  if (!userId) return jsonResponse({ error: "userId が必要です" }, 400);
+
+  const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      "payment_method_types[]": "card",
+      "mode": "subscription",
+      "line_items[0][price]": env.STRIPE_PRICE_ID,
+      "line_items[0][quantity]": "1",
+      "metadata[userId]": userId,
+      "success_url": successUrl,
+      "cancel_url": cancelUrl,
+    }),
+  });
+
+  const session = await res.json();
+  if (!res.ok) return jsonResponse({ error: session.error?.message || "Stripe エラー" }, 500);
+  return jsonResponse({ url: session.url });
+}
+
+// ============================================
+// Stripe Webhook 受信・サブスク有効化
+// ============================================
+
+async function handleStripeWebhook(request, env) {
+  const signature = request.headers.get("stripe-signature");
+  const body = await request.text();
+
+  if (env.STRIPE_WEBHOOK_SECRET) {
+    const valid = await verifyStripeSignature(body, signature, env.STRIPE_WEBHOOK_SECRET);
+    if (!valid) return jsonResponse({ error: "署名が無効です" }, 400);
+  }
+
+  const event = JSON.parse(body);
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const userId = session.metadata?.userId;
+    if (userId) {
+      const expires = new Date();
+      expires.setMonth(expires.getMonth() + 1);
+      await env.MYSTIC_SUBSCRIPTIONS.put(userId, JSON.stringify({
+        active: true,
+        plan: "mystic",
+        stripeCustomerId: session.customer,
+        stripeSubscriptionId: session.subscription,
+        expires: expires.toISOString(),
+        createdAt: new Date().toISOString(),
+      }));
+    }
+  }
+
+  return jsonResponse({ received: true });
+}
+
+async function verifyStripeSignature(payload, sigHeader, secret) {
+  try {
+    const parts = sigHeader.split(",").reduce((acc, part) => {
+      const [k, v] = part.split("=");
+      acc[k.trim()] = v;
+      return acc;
+    }, {});
+
+    const signedPayload = `${parts.t}.${payload}`;
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
+    const computed = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+    return computed === parts.v1;
+  } catch {
+    return false;
+  }
 }
 
 // ============================================
