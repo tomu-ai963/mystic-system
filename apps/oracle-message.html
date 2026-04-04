@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>オラクルメッセージ — MYSTIC SYSTEM</title>
-<link rel="stylesheet" href="mystic.css"/>
+<link rel="stylesheet" href="../mystic.css"/>
 </head>
 <body>
 <header>
-  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <a href="../index.html" class="logo">✦ <span>Mystic</span> System</a>
   <button class="logout-btn" id="logout-btn">ログアウト</button>
 </header>
 <main id="app" style="display:none">
@@ -28,7 +28,7 @@
     </div>
   </div>
 </main>
-<script src="mystic-login.js"></script>
+<script src="../mystic-login.js"></script>
 <script>
 window.onMysticLogin=()=>document.getElementById("app").style.display="block";
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});

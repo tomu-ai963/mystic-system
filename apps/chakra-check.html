@@ -2,47 +2,47 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>精霊動物診断 — MYSTIC SYSTEM</title>
-<link rel="stylesheet" href="mystic.css"/>
+<title>チャクラ診断 — MYSTIC SYSTEM</title>
+<link rel="stylesheet" href="../mystic.css"/>
 </head>
 <body>
 <header>
-  <a href="index.html" class="logo">✦ <span>Mystic</span> System</a>
+  <a href="../index.html" class="logo">✦ <span>Mystic</span> System</a>
   <button class="logout-btn" id="logout-btn">ログアウト</button>
 </header>
 <main id="app" style="display:none">
   <div class="app-hero">
-    <span class="app-icon">🦋</span>
-    <h1 class="app-title">精霊動物診断</h1>
-    <p class="app-desc">あなたを守護する精霊動物が魂のメッセージを届けます</p>
+    <span class="app-icon">🔮</span>
+    <h1 class="app-title">チャクラ診断</h1>
+    <p class="app-desc">7つのエネルギーセンターの滞りを特定し、解放への道を示します</p>
   </div>
   <div class="card">
     <div class="field-group">
-      <label>最も惹かれる自然環境は？</label>
+      <label>最近気になる体の部位・症状は？</label>
       <div class="options-grid" id="q1-grid"></div>
     </div>
     <div class="field-group">
-      <label>あなたの一番の強みは？</label>
+      <label>感情的に詰まっていると感じる部分は？</label>
       <div class="options-grid" id="q2-grid"></div>
     </div>
     <div class="field-group">
-      <label>困難に直面した時、あなたは？</label>
+      <label>今最も意識したい人生のテーマは？</label>
       <div class="options-grid" id="q3-grid"></div>
     </div>
-    <button class="submit-btn" id="submit-btn">守護精霊動物を探す</button>
+    <button class="submit-btn" id="submit-btn">チャクラを診断する</button>
     <div id="result" class="result hidden">
-      <div class="result-label">▷ 精霊動物からのメッセージ</div>
+      <div class="result-label">▷ チャクラ診断結果</div>
       <div id="result-text"></div>
     </div>
   </div>
 </main>
-<script src="mystic-login.js"></script>
+<script src="../mystic-login.js"></script>
 <script>
 window.onMysticLogin=()=>document.getElementById("app").style.display="block";
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 
-function makeOpts(gridId,opts,cb){
-  const g=document.getElementById(gridId);
+function makeOpts(gid,opts,cb){
+  const g=document.getElementById(gid);
   opts.forEach(o=>{
     const btn=document.createElement("button");
     btn.className="opt-btn";btn.textContent=o;
@@ -54,20 +54,20 @@ function makeOpts(gridId,opts,cb){
   });
 }
 let a1=null,a2=null,a3=null;
-makeOpts("q1-grid",["深い森","広大な海","自由な空","広大な大地","高い山峰"],v=>a1=v);
-makeOpts("q2-grid",["深い知恵と洞察","力強さと勇気","素早さと機転","深い愛と忠誠","癒しと共感"],v=>a2=v);
-makeOpts("q3-grid",["静かに内省して答えを探す","仲間を呼んで力を合わせる","本能に従い行動する","流れに身を委ね変化を待つ","高い視点から全体を俯瞰する"],v=>a3=v);
+makeOpts("q1-grid",["頭・目・耳","喉・首","胸・心臓","みぞおち・胃","お腹・腸","下腹部","足・膝・腰"],v=>a1=v);
+makeOpts("q2-grid",["自己表現できない","愛されているか不安","自信が持てない","感情が爆発する","お金や安全への不安","目標が定まらない","孤独感・繋がれない"],v=>a2=v);
+makeOpts("q3-grid",["直感と霊性を開く","コミュニケーションと表現","無条件の愛と癒し","意志と行動力","感情と創造性","安心と豊かさ","大地との繋がりと安定"],v=>a3=v);
 
 document.getElementById("submit-btn").addEventListener("click",async()=>{
   if(!a1||!a2||!a3){alert("すべての質問に答えてください");return;}
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
-  btn.disabled=true;btn.textContent="精霊を呼んでいます...";
+  btn.disabled=true;btn.textContent="チャクラを診ています...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/spirit-animal",{answers:{q1:a1,q2:a2,q3:a3}});rt.textContent=d.result;}
+  try{const d=await MysticAuth.callApi("/mystic/chakra-check",{answers:{q1:a1,q2:a2,q3:a3}});rt.textContent=d.result;}
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
-  finally{btn.disabled=false;btn.textContent="守護精霊動物を探す";}
+  finally{btn.disabled=false;btn.textContent="チャクラを診断する";}
 });
 </script>
 </body>
