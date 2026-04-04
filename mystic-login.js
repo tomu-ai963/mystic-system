@@ -76,13 +76,16 @@ const MysticAuth = {
     const userId = this.getUserId();
     if (!userId) throw new Error("ログインが必要です");
 
-    const res = await fetch(`${WORKER_URL}${endpoint}`, {
+    // /mystic/star-reading → action: "star-reading"
+    const action = endpoint.replace(/^\/mystic\//, "");
+
+    const res = await fetch(`${WORKER_URL}/api/mystic`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-User-Id": userId,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ action, ...body }),
     });
 
     const data = await res.json();
@@ -283,7 +286,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // Workerでサブスク状態を再確認
+  // index.html: ログイン済みならサブスク確認なしでアプリ一覧を表示
+  if (window.MYSTIC_IS_INDEX) {
+    onLoginSuccess();
+    return;
+  }
+
+  // 各アプリ: サブスク確認してから表示
   const userId = MysticAuth.getUserId();
   const subscribed = await MysticAuth.checkSubscription(userId);
   localStorage.setItem("mystic_subscription", subscribed ? "active" : "inactive");
