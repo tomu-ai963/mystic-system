@@ -56,14 +56,22 @@ document.getElementById("submit-btn").addEventListener("click",async()=>{
   if(!fullName){alert("氏名を入力してください");return;}
   const g=calcGoKaku(fullName);
   const cd=document.getElementById("calc-display");
-  cd.innerHTML=`天格${g.tk}・人格${g.jk}・地格${g.ck}・外格${g.gk}・総格${g.sk}${g.unknown?'<br><small>※未登録の漢字は「?」扱い</small>':''}`;
+  // 各五格を個別に表示して「確定値」を明示
+  cd.innerHTML=`【確定済み五格 — 再計算禁止】<br>`
+    +`天格：${g.tk}　人格：${g.jk}　地格：${g.ck}　外格：${g.gk}　総格：${g.sk}`
+    +(g.unknown?'<br><small>※未登録の漢字は「?」扱い</small>':'');
   cd.style.display="block";
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
   btn.disabled=true;btn.textContent="名前を鑑定中...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/name-fortune",{fullName,tenkaku:g.tk,jinkaku:g.jk,chikaku:g.ck,sotokaku:g.gk,soukaku:g.sk});rt.textContent=d.result;}
+  // 各五格を個別フィールドで明示送信（workerが再計算せず使えるように）
+  try{const d=await MysticAuth.callApi("/mystic/name-fortune",{
+    fullName,
+    tenkaku:g.tk, jinkaku:g.jk, chikaku:g.ck, sotokaku:g.gk, soukaku:g.sk,
+    confirmedGoKaku:true
+  });rt.textContent=d.result;}
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
   finally{btn.disabled=false;btn.textContent="名前の運命を鑑定する";}
 });
