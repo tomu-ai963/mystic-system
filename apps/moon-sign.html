@@ -33,6 +33,15 @@
 <script>
 function getSunSign(b){const[,m,d]=b.split('-').map(Number);if((m===3&&d>=21)||(m===4&&d<=19))return'牡羊座';if((m===4&&d>=20)||(m===5&&d<=20))return'牡牛座';if((m===5&&d>=21)||(m===6&&d<=21))return'双子座';if((m===6&&d>=22)||(m===7&&d<=22))return'蟹座';if((m===7&&d>=23)||(m===8&&d<=22))return'獅子座';if((m===8&&d>=23)||(m===9&&d<=22))return'乙女座';if((m===9&&d>=23)||(m===10&&d<=23))return'天秤座';if((m===10&&d>=24)||(m===11&&d<=22))return'蠍座';if((m===11&&d>=23)||(m===12&&d<=21))return'射手座';if((m===12&&d>=22)||(m===1&&d<=19))return'山羊座';if((m===1&&d>=20)||(m===2&&d<=18))return'水瓶座';return'魚座';}
 function getLifePathNumber(b){let n=b.replace(/-/g,'').split('').reduce((a,c)=>a+parseInt(c),0);while(n>9&&n!==11&&n!==22&&n!==33)n=String(n).split('').reduce((a,c)=>a+parseInt(c),0);return n;}
+// 月星座を確定計算（基準：2000-01-01 月の黄道経度≈218.32°、平均移動速度13.1764°/日）
+function getMoonSign(b){
+  const ref=Date.UTC(2000,0,1);
+  const[y,m,d]=b.split('-').map(Number);
+  const diff=(Date.UTC(y,m-1,d)-ref)/86400000;
+  const lon=((218.32+diff*13.1764)%360+360)%360;
+  const signs=['牡羊座','牡牛座','双子座','蟹座','獅子座','乙女座','天秤座','蠍座','射手座','山羊座','水瓶座','魚座'];
+  return signs[Math.floor(lon/30)];
+}
 window.onMysticLogin=()=>document.getElementById("app").style.display="block";
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 document.getElementById("submit-btn").addEventListener("click",async()=>{
@@ -40,14 +49,15 @@ document.getElementById("submit-btn").addEventListener("click",async()=>{
   if(!v){alert("生年月日を入力してください");return;}
   const sign=getSunSign(v);
   const lpn=getLifePathNumber(v);
+  const moonSign=getMoonSign(v);
   const cd=document.getElementById("calc-display");
-  cd.textContent=`太陽星座：${sign} ／ ライフパスナンバー：${lpn}`;cd.style.display="block";
+  cd.textContent=`太陽星座：${sign} ／ 月星座：${moonSign} ／ LPN：${lpn}`;cd.style.display="block";
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
   btn.disabled=true;btn.textContent="月を読んでいます...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/moon-sign",{birthdate:v,zodiacSign:sign,lifePathNumber:lpn});rt.textContent=d.result;}
+  try{const d=await MysticAuth.callApi("/mystic/moon-sign",{birthdate:v,zodiacSign:sign,lifePathNumber:lpn,moonSign});rt.textContent=d.result;}
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
   finally{btn.disabled=false;btn.textContent="月の星座を読み解く";}
 });
