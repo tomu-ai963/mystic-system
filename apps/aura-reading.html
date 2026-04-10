@@ -29,6 +29,7 @@
       <label>今最も強く感じている感情は？</label>
       <div class="options-grid" id="q3-grid"></div>
     </div>
+    <div id="calc-display" style="display:none;margin:.6rem 0;padding:.5rem .8rem;background:rgba(130,80,255,.08);border:1px solid rgba(130,80,255,.2);border-radius:.5rem;font-size:.85rem;color:#b8a4ff;line-height:1.6;"></div>
     <button class="submit-btn" id="submit-btn">オーラを視る</button>
     <div id="result" class="result hidden">
       <div class="result-label">▷ あなたのオーラカラー</div>
@@ -74,6 +75,8 @@ makeSingle("q3-grid",["愛と喜び","平和と静けさ","情熱と好奇心","
 
 document.getElementById("submit-btn").addEventListener("click",async()=>{
   if(!a1||a2.length===0||!a3){alert("すべての質問に答えてください");return;}
+  const cd=document.getElementById("calc-display");
+  cd.textContent=`エネルギー：${a1} ／ 惹かれる色：${a2.join("・")} ／ 感情：${a3}`;cd.style.display="block";
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");

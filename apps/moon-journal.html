@@ -33,23 +33,33 @@
 </main>
 <script src="../mystic-login.js"></script>
 <script>
+// 月相を確定計算（基準：2000-01-06 新月）
+function getMoonPhase(){
+  const ref=Date.UTC(2000,0,6);
+  const diff=(Date.now()-ref)/86400000;
+  const phase=((diff%29.53)+29.53)%29.53;
+  const names=['新月','三日月','上弦の月','十日夜','満月','十六夜','下弦の月','晦日月'];
+  const icons=['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'];
+  const idx=Math.floor(phase/(29.53/8))%8;
+  return{name:names[idx],icon:icons[idx],age:Math.round(phase)};
+}
 window.onMysticLogin=()=>{
   document.getElementById("app").style.display="block";
   const now=new Date();
   document.getElementById("today-date").textContent=now.toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
-  // 簡易月相アイコン
-  const day=now.getDate();
-  const icons=["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"];
-  document.getElementById("moon-phase-icon").textContent=icons[Math.floor((day%30)/4)%8];
+  const mp=getMoonPhase();
+  document.getElementById("moon-phase-icon").textContent=mp.icon;
 };
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const today=new Date().toISOString().split("T")[0];
+  const mp=getMoonPhase();
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
   btn.disabled=true;btn.textContent="月と繋がっています...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/moon-journal",{});rt.textContent=d.result;}
+  try{const d=await MysticAuth.callApi("/mystic/moon-journal",{today,moonPhase:mp.name,moonAge:mp.age});rt.textContent=d.result;}
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
   finally{btn.disabled=false;btn.textContent="月からのメッセージを受け取る";}
 });

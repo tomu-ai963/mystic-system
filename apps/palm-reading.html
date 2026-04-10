@@ -32,6 +32,7 @@
       ✦ 手全体が写るように<br>
       ✦ ピントが合っているか確認
     </div>
+    <div id="calc-display" style="display:none;margin:.6rem 0;padding:.5rem .8rem;background:rgba(130,80,255,.08);border:1px solid rgba(130,80,255,.2);border-radius:.5rem;font-size:.85rem;color:#b8a4ff;"></div>
     <button class="submit-btn" id="submit-btn">手相を読み解く</button>
     <div id="result" class="result hidden">
       <div class="result-label">▷ 手相鑑定結果</div>
@@ -67,6 +68,8 @@ function handleFile(file){
     zone.classList.add("has-image");
     zone.querySelector(".upload-icon").style.display="none";
     zone.querySelector(".upload-label").style.display="none";
+    const cd=document.getElementById("calc-display");
+    cd.textContent=`写真確認済み：${file.name}（${(file.size/1024).toFixed(0)}KB）`;cd.style.display="block";
   };
   reader.readAsDataURL(file);
 }

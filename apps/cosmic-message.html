@@ -33,6 +33,12 @@
 </main>
 <script src="../mystic-login.js"></script>
 <script>
+// 今日の宇宙数（日付の数字を一桁に還元）
+function getCosmicNumber(dateStr){
+  let n=dateStr.replace(/-/g,'').split('').reduce((a,c)=>a+parseInt(c),0);
+  while(n>9&&n!==11&&n!==22)n=String(n).split('').reduce((a,c)=>a+parseInt(c),0);
+  return n;
+}
 window.onMysticLogin=()=>{
   document.getElementById("app").style.display="block";
   const now=new Date();
@@ -40,12 +46,14 @@ window.onMysticLogin=()=>{
 };
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const today=new Date().toISOString().split("T")[0];
+  const cosmicNumber=getCosmicNumber(today);
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
   btn.disabled=true;btn.textContent="宇宙の声を受信しています...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/cosmic-message",{});rt.textContent=d.result;}
+  try{const d=await MysticAuth.callApi("/mystic/cosmic-message",{today,cosmicNumber});rt.textContent=d.result;}
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
   finally{btn.disabled=false;btn.textContent="今日のメッセージを受け取る";}
 });
