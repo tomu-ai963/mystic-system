@@ -29,6 +29,7 @@
       <label>出生地（市区町村）</label>
       <input type="text" id="birth-place" placeholder="例：東京都渋谷区"/>
     </div>
+    <div id="calc-display" style="display:none;margin:.6rem 0;padding:.5rem .8rem;background:rgba(130,80,255,.08);border:1px solid rgba(130,80,255,.2);border-radius:.5rem;font-size:.85rem;color:#b8a4ff;"></div>
     <button class="submit-btn" id="submit-btn">ホロスコープを読み解く</button>
     <div id="result" class="result hidden">
       <div class="result-label">▷ ホロスコープ鑑定</div>
@@ -38,6 +39,7 @@
 </main>
 <script src="../mystic-login.js"></script>
 <script>
+function getSunSign(b){const[,m,d]=b.split('-').map(Number);if((m===3&&d>=21)||(m===4&&d<=19))return'牡羊座';if((m===4&&d>=20)||(m===5&&d<=20))return'牡牛座';if((m===5&&d>=21)||(m===6&&d<=21))return'双子座';if((m===6&&d>=22)||(m===7&&d<=22))return'蟹座';if((m===7&&d>=23)||(m===8&&d<=22))return'獅子座';if((m===8&&d>=23)||(m===9&&d<=22))return'乙女座';if((m===9&&d>=23)||(m===10&&d<=23))return'天秤座';if((m===10&&d>=24)||(m===11&&d<=22))return'蠍座';if((m===11&&d>=23)||(m===12&&d<=21))return'射手座';if((m===12&&d>=22)||(m===1&&d<=19))return'山羊座';if((m===1&&d>=20)||(m===2&&d<=18))return'水瓶座';return'魚座';}
 window.onMysticLogin=()=>document.getElementById("app").style.display="block";
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 document.getElementById("submit-btn").addEventListener("click",async()=>{
@@ -45,12 +47,15 @@ document.getElementById("submit-btn").addEventListener("click",async()=>{
   const birthTime=document.getElementById("birth-time").value;
   const birthPlace=document.getElementById("birth-place").value.trim();
   if(!birthdate||!birthPlace){alert("生年月日と出生地を入力してください");return;}
+  const sign=getSunSign(birthdate);
+  const cd=document.getElementById("calc-display");
+  cd.textContent=`太陽星座：${sign}`;cd.style.display="block";
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
   btn.disabled=true;btn.textContent="天体の配置を読んでいます...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/horoscope-deep",{birthdate,birthTime,birthPlace});rt.textContent=d.result;}
+  try{const d=await MysticAuth.callApi("/mystic/horoscope-deep",{birthdate,birthTime,birthPlace,zodiacSign:sign});rt.textContent=d.result;}
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
   finally{btn.disabled=false;btn.textContent="ホロスコープを読み解く";}
 });

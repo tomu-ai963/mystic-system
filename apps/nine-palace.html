@@ -35,6 +35,7 @@
         <button class="palace-cell" data-palace="六白金星（西北・天）"><span class="palace-num">六</span>西北・天<br>リーダー</button>
       </div>
     </div>
+    <div id="calc-display" style="display:none;margin:.6rem 0;padding:.5rem .8rem;background:rgba(130,80,255,.08);border:1px solid rgba(130,80,255,.2);border-radius:.5rem;font-size:.85rem;color:#b8a4ff;"></div>
     <button class="submit-btn" id="submit-btn">宮のエネルギーを読む</button>
     <div id="result" class="result hidden">
       <div class="result-label">▷ 九宮のメッセージ</div>
@@ -44,6 +45,7 @@
 </main>
 <script src="../mystic-login.js"></script>
 <script>
+function getNineStarKi(b){const[y,m,d]=b.split('-').map(Number);const ay=(m===1||(m===2&&d<=3))?y-1:y;let s=String(ay).split('').reduce((a,c)=>a+parseInt(c),0);while(s>=10)s=String(s).split('').reduce((a,c)=>a+parseInt(c),0);const n=(11-s)%9||9;const names=['','一白水星','二黒土星','三碧木星','四緑木星','五黄土星','六白金星','七赤金星','八白土星','九紫火星'];return{num:n,name:names[n]};}
 window.onMysticLogin=()=>document.getElementById("app").style.display="block";
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 
@@ -58,12 +60,15 @@ document.getElementById("palace-grid").querySelectorAll(".palace-cell").forEach(
 document.getElementById("submit-btn").addEventListener("click",async()=>{
   const birthdate=document.getElementById("birthdate").value;
   if(!birthdate||!selected){alert("生年月日と宮を選んでください");return;}
+  const ki=getNineStarKi(birthdate);
+  const cd=document.getElementById("calc-display");
+  cd.textContent=`本命星：${ki.name}（${ki.num}） ／ 選択：${selected}`;cd.style.display="block";
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
   btn.disabled=true;btn.textContent="気の流れを読んでいます...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/nine-palace",{birthdate,selectedPalace:selected});rt.textContent=d.result;}
+  try{const d=await MysticAuth.callApi("/mystic/nine-palace",{birthdate,selectedPalace:selected,honmeisei:ki.name,honmeiseiNum:ki.num});rt.textContent=d.result;}
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
   finally{btn.disabled=false;btn.textContent="宮のエネルギーを読む";}
 });
