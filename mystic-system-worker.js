@@ -691,13 +691,14 @@ async function handleAuraReading(request, env) {
 // ㉑ チャクラ診断
 // ============================================
 async function handleChakraCheck(request, env) {
-  const { answers } = await request.json();
+  const { answers, chakra, chakraNum } = await request.json();
+  const chakraDesc = chakra ? `特定チャクラ：${chakra}（${chakraNum}）` : `回答：${JSON.stringify(answers)}`;
   const result = await callClaude(
     env,
-    `あなたはチャクラを診るエネルギーヒーラーです。ユーザーの回答から滞っているチャクラを特定し、そのチャクラの意味・解放のための実践・魂のメッセージを神秘的な文体で日本語で伝えてください。400文字程度で。`,
-    `回答：${JSON.stringify(answers)}`
+    `あなたはチャクラを診るエネルギーヒーラーです。以下の確定済みデータを元に、そのチャクラの意味・滞りの原因・解放のための実践・魂のメッセージを神秘的な文体で日本語で伝えてください。チャクラ名は変えないでください。400文字程度で。`,
+    `${chakraDesc}\n感情の詰まり：${answers.q2}\n意識したいテーマ：${answers.q3}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, chakra, chakraNum });
 }
 
 // ============================================
@@ -758,26 +759,33 @@ async function handleDreamColors(request, env) {
 // ㉖ 月相ジャーナル
 // ============================================
 async function handleMoonJournal(request, env) {
-  const today = new Date().toISOString().split("T")[0];
+  const body = await request.json().catch(()=>({}));
+  const today = body.today || new Date().toISOString().split("T")[0];
+  const moonPhase = body.moonPhase || null;
+  const moonAge = body.moonAge ?? null;
+  const phaseDesc = moonPhase ? `月相：${moonPhase}（月齢約${moonAge}日）` : `今日の日付：${today}`;
   const result = await callClaude(
     env,
-    `あなたは月の神秘を語る案内人です。今日の月相に基づいた内省のための問いかけと、月からのメッセージを詩的な日本語で届けてください。250文字程度で。`,
-    `今日の日付：${today}`
+    `あなたは月の神秘を語る案内人です。以下の確定済み月相データを元に、内省のための問いかけと月からのメッセージを詩的な日本語で届けてください。月相名は変えないでください。250文字程度で。`,
+    `今日の日付：${today}\n${phaseDesc}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, moonPhase, moonAge });
 }
 
 // ============================================
 // ㉗ 今日の宇宙メッセージ
 // ============================================
 async function handleCosmicMessage(request, env) {
-  const today = new Date().toISOString().split("T")[0];
+  const body = await request.json().catch(()=>({}));
+  const today = body.today || new Date().toISOString().split("T")[0];
+  const cosmicNumber = body.cosmicNumber ?? null;
+  const numDesc = cosmicNumber !== null ? `\n今日の宇宙数：${cosmicNumber}` : '';
   const result = await callClaude(
     env,
-    `あなたは宇宙の意識とつながるチャネラーです。今日この日の宇宙的エネルギーを感じ取り、地球上のすべての魂へのメッセージを詩的で神秘的な日本語で届けてください。250文字程度で。`,
-    `今日の日付：${today}`
+    `あなたは宇宙の意識とつながるチャネラーです。以下の確定済み日付データを元に、今日この日の宇宙的エネルギーと地球上のすべての魂へのメッセージを詩的で神秘的な日本語で届けてください。宇宙数は変えないでください。250文字程度で。`,
+    `今日の日付：${today}${numDesc}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, cosmicNumber });
 }
 
 // ============================================
