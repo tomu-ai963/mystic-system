@@ -529,15 +529,15 @@ async function handleBiorhythm(request, env) {
 // ⑨ ムーンサイン診断
 // ============================================
 async function handleMoonSign(request, env) {
-  const { birthdate } = await request.json();
-  const sign = getSunSign(birthdate);
-  const lpn = getLifePathNumber(birthdate);
+  const { birthdate, zodiacSign, lifePathNumber, moonSign } = await request.json();
+  const sign = zodiacSign || getSunSign(birthdate);
+  const lpn = lifePathNumber || getLifePathNumber(birthdate);
   const result = await callClaude(
     env,
-    `あなたは月星座の占い師です。以下の確定済みデータを元に、その人の内面・感情パターン・本当の欲求を神秘的な文体で日本語で伝えてください。※正確な月星座には出生時刻が必要なため、太陽星座とライフパスナンバーを基軸として月の感受性を読み解いてください。これらの数値は変えないでください。300文字程度で。`,
-    `生年月日：${birthdate}\n太陽星座：${sign}\nライフパスナンバー：${lpn}`
+    `あなたは月星座の占い師です。以下の確定済みデータを元に、その人の内面・感情パターン・本当の欲求を神秘的な文体で日本語で伝えてください。太陽星座・月星座・ライフパスナンバーは変えないでください。300文字程度で。`,
+    `生年月日：${birthdate}\n太陽星座：${sign}\n月星座：${moonSign}\nライフパスナンバー：${lpn}`
   );
-  return jsonResponse({ result, sign, lifePathNumber: lpn });
+  return jsonResponse({ result, sunSign: sign, moonSign, lifePathNumber: lpn });
 }
 
 // ============================================
@@ -559,14 +559,14 @@ async function handleEasternStars(request, env) {
 // ⑪ ホロスコープ詳細
 // ============================================
 async function handleHoroscopeDeep(request, env) {
-  const { birthdate, birthTime, birthPlace } = await request.json();
-  const sign = getSunSign(birthdate);
+  const { birthdate, birthTime, birthPlace, zodiacSign, moonSign } = await request.json();
+  const sign = zodiacSign || getSunSign(birthdate);
   const result = await callClaude(
     env,
-    `あなたは本格的な西洋占星術師です。以下の確定済みデータを元に、その人の本質・魂のテーマ・今後の流れを神秘的で詳しい文体で日本語で伝えてください。太陽星座は変えないでください。出生時刻・出生地から月星座・アセンダントの考察も加えてください。500文字程度で。`,
-    `生年月日：${birthdate}\n太陽星座：${sign}\n出生時刻：${birthTime}\n出生地：${birthPlace}`
+    `あなたは本格的な西洋占星術師です。以下の確定済みデータを元に、その人の本質・魂のテーマ・今後の流れを神秘的で詳しい文体で日本語で伝えてください。太陽星座・月星座は変えないでください。出生時刻・出生地からアセンダントの考察も加えてください。500文字程度で。`,
+    `生年月日：${birthdate}\n太陽星座：${sign}\n月星座：${moonSign}\n出生時刻：${birthTime}\n出生地：${birthPlace}`
   );
-  return jsonResponse({ result, sunSign: sign });
+  return jsonResponse({ result, sunSign: sign, moonSign });
 }
 
 // ============================================
