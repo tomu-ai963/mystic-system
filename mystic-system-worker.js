@@ -499,17 +499,33 @@ async function handleAnimalFortune(request, env) {
 // ⑦ 姓名判断
 // ============================================
 async function handleNameFortune(request, env) {
-  const { fullName } = await request.json();
-  const gk = calcGoKaku(fullName);
-  const strokesDesc = `姓「${gk.sei}」画数：${gk.seiStrokes.join('+')}＝${gk.tenkaku}、名「${gk.mei}」画数：${gk.meiStrokes.join('+')}＝${gk.chikaku}`;
-  const gokuDesc = `天格${gk.tenkaku}・人格${gk.jinkaku}・地格${gk.chikaku}・外格${gk.sotokaku}・総格${gk.soukaku}`;
-  const unknownNote = gk.unknown ? '\n※一部の漢字の画数が未登録のため「?」としています。' : '';
+  const { fullName, tenkaku: clientTk, jinkaku: clientJk, chikaku: clientCk, sotokaku: clientGk, soukaku: clientSk, confirmedGoKaku } = await request.json();
+
+  // クライアントから確定値が送られている場合はそれを優先（再計算しない）
+  let tk, jk, ck, gk, sk, unknownNote;
+  if (confirmedGoKaku && clientTk !== undefined) {
+    tk = clientTk; jk = clientJk; ck = clientCk; gk = clientGk; sk = clientSk;
+    unknownNote = (tk === '?' || jk === '?' || ck === '?' || gk === '?' || sk === '?')
+      ? '\n※一部の漢字の画数が未登録のため「?」としています。' : '';
+  } else {
+    const calc = calcGoKaku(fullName);
+    tk = calc.tenkaku; jk = calc.jinkaku; ck = calc.chikaku; gk = calc.sotokaku; sk = calc.soukaku;
+    unknownNote = calc.unknown ? '\n※一部の漢字の画数が未登録のため「?」としています。' : '';
+  }
+
   const result = await callClaude(
     env,
-    `あなたは姓名判断の達人です。以下の確定済み五格データを元に、運命の流れと今後の指針を神秘的な文体で日本語で伝えてください。五格の数値は変えないでください。400文字程度で。`,
-    `氏名：${fullName}\n${strokesDesc}\n五格：${gokuDesc}${unknownNote}`
+    `あなたは姓名判断の達人です。以下の画数は確定値です。この数値を使って運命の流れと今後の指針を神秘的な文体で日本語で伝えてください。絶対に画数を再計算しないでください。400文字程度で。`,
+    `氏名：${fullName}
+【確定済み五格 — 絶対に再計算しないでください】
+天格：${tk}（確定値）
+人格：${jk}（確定値）
+地格：${ck}（確定値）
+外格：${gk}（確定値）
+総格：${sk}（確定値）${unknownNote}
+以上の数値をそのまま使い、独自に画数を算出・修正しないでください。`
   );
-  return jsonResponse({ result, goKaku: { tenkaku:gk.tenkaku, jinkaku:gk.jinkaku, chikaku:gk.chikaku, sotokaku:gk.sotokaku, soukaku:gk.soukaku } });
+  return jsonResponse({ result, goKaku: { tenkaku: tk, jinkaku: jk, chikaku: ck, sotokaku: gk, soukaku: sk } });
 }
 
 // ============================================
