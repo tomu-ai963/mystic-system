@@ -486,13 +486,13 @@ async function handleMayaCalendar(request, env) {
 // ⑥ 動物占い
 // ============================================
 async function handleAnimalFortune(request, env) {
-  const { birthdate, bloodType } = await request.json();
+  const { birthdate, bloodType, animal } = await request.json();
   const result = await callClaude(
     env,
-    `あなたは動物占いの達人です。生年月日と血液型から守護動物（虎・狼・猿・羊・象・チーター・コアラ・ライオン・黒ヒョウ・狸・子鹿・ペガサスの12種）を特定し、その性格・恋愛・今月の運勢を神秘的な文体で日本語で伝えてください。400文字程度で。`,
-    `生年月日：${birthdate}、血液型：${bloodType}`
+    `あなたは動物占いの達人です。以下の確定済みデータを元に、守護動物の性格・恋愛・今月の運勢を神秘的な文体で日本語で伝えてください。守護動物の名前は変えないでください。400文字程度で。`,
+    `生年月日：${birthdate}、血液型：${bloodType}、守護動物：${animal}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, animal });
 }
 
 // ============================================
@@ -612,13 +612,14 @@ async function handleOracleCards(request, env) {
 // ⑮ 九宮格診断
 // ============================================
 async function handleNinePalace(request, env) {
-  const { selectedPalace, birthdate } = await request.json();
+  const { selectedPalace, birthdate, honmeisei: clientHonmei, honmeiseiNum: clientNum } = await request.json();
+  const ki = clientHonmei ? { name: clientHonmei, num: clientNum } : getNineStarKi(birthdate);
   const result = await callClaude(
     env,
-    `あなたは九宮格（風水×気学）の達人です。生年月日と直感で選んだ宮（方位・エネルギー）から、今のあなたの運気の流れと開運の鍵を神秘的な文体で日本語で伝えてください。350文字程度で。`,
-    `生年月日：${birthdate}、直感で選んだ宮：${selectedPalace}`
+    `あなたは九宮格（風水×気学）の達人です。以下の確定済みデータを元に、今のあなたの運気の流れと開運の鍵を神秘的な文体で日本語で伝えてください。本命星は変えないでください。350文字程度で。`,
+    `生年月日：${birthdate}、本命星：${ki.name}（${ki.num}）、直感で選んだ宮：${selectedPalace}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, honmeisei: ki.name, honmeiseiNum: ki.num });
 }
 
 // ============================================
