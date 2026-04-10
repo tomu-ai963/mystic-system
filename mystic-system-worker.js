@@ -309,16 +309,121 @@ async function callClaudeVision(env, systemPrompt, imageBase64, mimeType = "imag
 }
 
 // ============================================
+// 確定計算ユーティリティ
+// ============================================
+
+function getSunSign(birthdate) {
+  const [, m, d] = birthdate.split('-').map(Number);
+  if ((m===3&&d>=21)||(m===4&&d<=19)) return '牡羊座';
+  if ((m===4&&d>=20)||(m===5&&d<=20)) return '牡牛座';
+  if ((m===5&&d>=21)||(m===6&&d<=21)) return '双子座';
+  if ((m===6&&d>=22)||(m===7&&d<=22)) return '蟹座';
+  if ((m===7&&d>=23)||(m===8&&d<=22)) return '獅子座';
+  if ((m===8&&d>=23)||(m===9&&d<=22)) return '乙女座';
+  if ((m===9&&d>=23)||(m===10&&d<=23)) return '天秤座';
+  if ((m===10&&d>=24)||(m===11&&d<=22)) return '蠍座';
+  if ((m===11&&d>=23)||(m===12&&d<=21)) return '射手座';
+  if ((m===12&&d>=22)||(m===1&&d<=19)) return '山羊座';
+  if ((m===1&&d>=20)||(m===2&&d<=18)) return '水瓶座';
+  return '魚座';
+}
+
+function getNineStarKi(birthdate) {
+  const [y, m, d] = birthdate.split('-').map(Number);
+  const ay = (m===1||(m===2&&d<=3)) ? y-1 : y;
+  let s = String(ay).split('').reduce((a,b)=>a+parseInt(b),0);
+  while(s>=10) s=String(s).split('').reduce((a,b)=>a+parseInt(b),0);
+  const n = (11-s)%9||9;
+  const names=['','一白水星','二黒土星','三碧木星','四緑木星','五黄土星','六白金星','七赤金星','八白土星','九紫火星'];
+  return {num:n, name:names[n]};
+}
+
+function getMayaKin(birthdate) {
+  const base = Date.UTC(2000,0,1);
+  const [y,m,d] = birthdate.split('-').map(Number);
+  const diff = Math.round((Date.UTC(y,m-1,d)-base)/86400000);
+  const kin = ((163+diff)%260+260)%260+1;
+  const tones=['磁気','月','電気','自己存在','倍音','リズム','共鳴','銀河','太陽','惑星','スペクトル','水晶','宇宙'];
+  const seals=['赤い龍','白い風','青い夜','黄色い種','赤い蛇','白い世界の橋渡し','青い手','黄色い星','赤い月','白い犬','青い猿','黄色い人','赤い空歩く者','白い魔法使い','青い鷲','黄色い戦士','赤い地球','白い鏡','青い嵐','黄色い太陽'];
+  return {kin, tone:tones[(kin-1)%13], seal:seals[(kin-1)%20]};
+}
+
+function getLifePathNumber(birthdate) {
+  let n = birthdate.replace(/-/g,'').split('').reduce((a,b)=>a+parseInt(b),0);
+  while(n>9&&n!==11&&n!==22&&n!==33) n=String(n).split('').reduce((a,b)=>a+parseInt(b),0);
+  return n;
+}
+
+function getEto(birthdate) {
+  const y = parseInt(birthdate.split('-')[0]);
+  const junishi=['申','酉','戌','亥','子','丑','寅','卯','辰','巳','午','未'];
+  const jikkan=['庚','辛','壬','癸','甲','乙','丙','丁','戊','己'];
+  return {kan:jikkan[y%10], eto:junishi[y%12]};
+}
+
+// 人名用漢字画数テーブル
+const KS = {
+  '一':1,
+  '乃':2,'七':2,'二':2,'人':2,'入':2,'八':2,'力':2,'十':2,'刀':2,'丁':2,
+  '三':3,'口':3,'土':3,'大':3,'女':3,'子':3,'小':3,'山':3,'川':3,'千':3,'久':3,'丈':3,'万':3,'干':3,'也':3,'己':3,'士':3,'弓':3,'上':3,'下':3,
+  '中':4,'今':4,'仁':4,'元':4,'内':4,'公':4,'六':4,'天':4,'太':4,'五':4,'心':4,'手':4,'文':4,'方':4,'木':4,'月':4,'水':4,'火':4,'王':4,'日':4,'円':4,'少':4,'友':4,'反':4,'化':4,'比':4,'夫':4,'支':4,'斗':4,'不':4,'丹':4,
+  '四':5,'以':5,'加':5,'史':5,'司':5,'右':5,'古':5,'由':5,'央':5,'功':5,'令':5,'冬':5,'出':5,'半':5,'占':5,'外':5,'広':5,'弘':5,'末':5,'本':5,'永':5,'玄':5,'玉':5,'平':5,'礼':5,'世':5,'正':5,'生':5,'白':5,'石':5,'田':5,'目':5,'北':5,'申':5,'甲':5,'矢':5,'台':5,'布':5,'市':5,'付':5,'仙':5,
+  '伊':6,'光':6,'全':6,'共':6,'合':6,'向':6,'在':6,'多':6,'宇':6,'安':6,'守':6,'宏':6,'次':6,'気':6,'江':6,'成':6,'早':6,'旭':6,'朱':6,'西':6,'羽':6,'老':6,'自':6,'至':6,'舟':6,'血':6,'衣':6,'行':6,'先':6,'名':6,'年':6,'有':6,'百':6,'竹':6,'色':6,'地':6,'帆':6,'凪':6,'吉':6,'好':6,'再':6,'兆':6,'汐':6,'仲':6,'任':6,'伏':6,'朴':6,'曲':6,'妃':6,
+  '亜':7,'位':7,'住':7,'克':7,'初':7,'別':7,'努':7,'労':7,'吾':7,'告':7,'君':7,'孝':7,'完':7,'志':7,'忘':7,'我':7,'改':7,'束':7,'杏':7,'李':7,'材':7,'沙':7,'那':7,'均':7,'岐':7,'妙':7,'良':7,'花':7,'赤':7,'男':7,'村':7,'里':7,'来':7,'言':7,'見':7,'車':7,'何':7,'冴':7,'佐':7,'希':7,'抄':7,'沖':7,'扶':7,'佑':7,'宋':7,'肖':7,'寿':7,'汰':7,'伸':7,'伶':7,
+  '佳':8,'依':8,'典':8,'具':8,'制':8,'到':8,'命':8,'固':8,'奈':8,'委':8,'定':8,'宗':8,'官':8,'宙':8,'宝':8,'尚':8,'岩':8,'岸':8,'幸':8,'拓':8,'松':8,'武':8,'治':8,'法':8,'沼':8,'炎':8,'物':8,'直':8,'知':8,'空':8,'育':8,'英':8,'茉':8,'長':8,'門':8,'昌':8,'旺':8,'実':8,'昂':8,'林':8,'金':8,'青':8,'学':8,'岡':8,'和':8,'周':8,'承':8,'征':8,'怜':8,'侑':8,'坪':8,'果':8,'昇':8,'宜':8,'虎':8,'並':8,'卓':8,'奉':8,'享':8,'茂':8,'阿':8,'昆':8,'昔':8,'仰':8,
+  '哉':9,'型':9,'城':9,'威':9,'奏':9,'姿':9,'室':9,'宣':9,'帝':9,'建':9,'持':9,'政':9,'故':9,'柄':9,'柔':9,'柳':9,'洋':9,'洲':9,'活':9,'津':9,'研':9,'秋':9,'紀':9,'美':9,'背':9,'胡':9,'茜':9,'音':9,'飛':9,'哀':9,'勇':9,'厚':9,'咲':9,'香':9,'春':9,'海':9,'南':9,'星':9,'風':9,'保':9,'信':9,'前':9,'昴':9,'俊':9,'宥':9,'亮':9,'玲':9,'珂':9,'拳':9,'点':9,'律':9,'皇':9,'玻':9,'珊':9,'郎':9,
+  '原':10,'家':10,'真':10,'桜':10,'純':10,'留':10,'修':10,'倫':10,'哲':10,'容':10,'宮':10,'展':10,'恋':10,'悟':10,'振':10,'根':10,'格':10,'桂':10,'桃':10,'流':10,'浩':10,'浪':10,'浦':10,'特':10,'益':10,'神':10,'秦':10,'紘':10,'紗':10,'素':10,'能':10,'透':10,'泰':10,'泳':10,'夏':10,'晃':10,'洸':10,'竜':10,'将':10,'航':10,'凌':10,'隼':10,'朔':10,'梅':10,'捷':10,'倖':10,'恭':10,'時':10,'朗':10,
+  '健':11,'唯':11,'凰':11,'啓':11,'問':11,'基':11,'堂':11,'堅':11,'悠':11,'梨':11,'梓':11,'清':11,'渉':11,'渓':11,'淳':11,'深':11,'理':11,'現':11,'紬':11,'脩':11,'彩':11,'黄':11,'鹿':11,'崇':11,'康':11,'陸':11,'麻':11,'渚':11,'野':11,'球':11,'帯':11,'副':11,'務':11,'動':11,'匡':11,'猛':11,'崚':11,'鳥':11,'彬':11,'惇':11,
+  '朝':12,'博':12,'善':12,'尊':12,'幾':12,'敦':12,'最':12,'植':12,'湯':12,'無':12,'登':12,'絢':12,'絵':12,'結':12,'翔':12,'雄':12,'森':12,'湖':12,'満':12,'晴':12,'喜':12,'御':12,'勝':12,'葵':12,'琴':12,'稀':12,'葉':12,'椎':12,'陽':12,'裕':12,'智':12,'創':12,'統':12,'景':12,'晶':12,'達':12,'運':12,'策':12,'琢':11,
+  '蒼':13,'遥':13,'蓮':13,'愛':13,'義':13,'想':13,'新':13,'業':13,'極':13,'楓':13,'歳':13,'滋':13,'照':13,'詩':13,'路':13,'聖':13,'頌':13,'暖':13,'椿':13,'楠':13,'豊':13,'誠':13,'源':13,'瑛':13,
+  '静':14,'緑':14,'歌':14,'維':14,'徳':14,'漢':14,'端':14,'翠':14,'語':14,'誓':14,'銀':14,'関':14,'嘉':14,'聡':14,'彰':14,'豪':14,'颯':14,'碧':14,
+  '輝':15,'熱':15,'確':15,'論':15,'穂':15,'璃':15,'凛':15,'凜':15,
+  '樹':16,'橋':16,'整':16,'親':16,'頼':16,'龍':16,'賢':16,
+  '謙':17,'霞':17,'鎌':18,'蘭':19,'鶴':21,'麟':23,
+};
+
+function calcGoKaku(fullName) {
+  const trimmed = fullName.trim();
+  const spIdx = trimmed.search(/[\s　]/);
+  let sei, mei;
+  if (spIdx > 0) {
+    sei = trimmed.slice(0, spIdx).split('');
+    mei = trimmed.slice(spIdx+1).trim().split('');
+  } else {
+    const half = Math.ceil(trimmed.length/2);
+    sei = trimmed.slice(0, half).split('');
+    mei = trimmed.slice(half).split('');
+  }
+  const strokes = c => KS[c] ?? '?';
+  const ss = sei.map(strokes);
+  const ms = mei.map(strokes);
+  const ok = arr => arr.every(v=>v!=='?');
+  const sum = arr => arr.reduce((a,b)=>a+(b==='?'?0:b),0);
+  const tenkaku = ok(ss) ? sum(ss) : '?';
+  const chikaku = ok(ms) ? sum(ms) : '?';
+  const jinkaku = (ss[ss.length-1]!=='?' && ms[0]!=='?') ? ss[ss.length-1]+ms[0] : '?';
+  const soukaku = (tenkaku!=='?' && chikaku!=='?') ? tenkaku+chikaku : '?';
+  const sotokaku = (soukaku!=='?' && jinkaku!=='?') ? soukaku-jinkaku : '?';
+  return {
+    sei: sei.join(''), mei: mei.join(''),
+    seiStrokes: ss, meiStrokes: ms,
+    tenkaku, jinkaku, chikaku, sotokaku, soukaku,
+    unknown: [...ss,...ms].some(v=>v==='?'),
+  };
+}
+
+// ============================================
 // ① 今日の星読み
 // ============================================
 async function handleStarReading(request, env) {
   const { birthdate } = await request.json();
+  const sign = getSunSign(birthdate);
   const result = await callClaude(
     env,
-    `あなたは神秘的な星読み師です。生年月日から星座を判定し、今日の星の配置に基づいたメッセージを、詩的で神秘的な文体で日本語で届けてください。200〜300文字程度で。`,
-    `生年月日：${birthdate}`
+    `あなたは神秘的な星読み師です。以下の確定済みデータを元に、今日の星の配置に基づいたメッセージを詩的で神秘的な文体で日本語で届けてください。星座の判定は変えないでください。200〜300文字程度で。`,
+    `生年月日：${birthdate}\n太陽星座：${sign}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, sign });
 }
 
 // ============================================
@@ -326,12 +431,13 @@ async function handleStarReading(request, env) {
 // ============================================
 async function handleNumerology(request, env) {
   const { name, birthdate } = await request.json();
+  const lpn = getLifePathNumber(birthdate);
   const result = await callClaude(
     env,
-    `あなたは数秘術の達人です。名前と生年月日からライフパスナンバーを計算し、魂の使命と今世のテーマを神秘的な文体で日本語で伝えてください。300文字程度で。`,
-    `名前：${name}、生年月日：${birthdate}`
+    `あなたは数秘術の達人です。以下の確定済みライフパスナンバーを元に、魂の使命と今世のテーマを神秘的な文体で日本語で伝えてください。ライフパスナンバーの数値は変えないでください。300文字程度で。`,
+    `名前：${name}\n生年月日：${birthdate}\nライフパスナンバー：${lpn}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, lifePathNumber: lpn });
 }
 
 // ============================================
@@ -339,12 +445,13 @@ async function handleNumerology(request, env) {
 // ============================================
 async function handleGuardianStar(request, env) {
   const { birthdate } = await request.json();
+  const sign = getSunSign(birthdate);
   const result = await callClaude(
     env,
-    `あなたは星の守護者です。生年月日から守護星を特定し、今週の指針と開運アドバイスを神秘的な文体で日本語で届けてください。300文字程度で。`,
-    `生年月日：${birthdate}`
+    `あなたは星の守護者です。以下の確定済みデータを元に、守護星の性質と今週の指針・開運アドバイスを神秘的な文体で日本語で届けてください。星座は変えないでください。300文字程度で。`,
+    `生年月日：${birthdate}\n太陽星座：${sign}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, sign });
 }
 
 // ============================================
@@ -352,12 +459,13 @@ async function handleGuardianStar(request, env) {
 // ============================================
 async function handleNineStarKi(request, env) {
   const { birthdate } = await request.json();
+  const ki = getNineStarKi(birthdate);
   const result = await callClaude(
     env,
-    `あなたは九星気学の達人です。生年月日から本命星（一白水星〜九紫火星）を算出し、その人の本質・人生テーマ・今年の運気を神秘的な文体で日本語で伝えてください。350文字程度で。`,
-    `生年月日：${birthdate}`
+    `あなたは九星気学の達人です。以下の確定済みデータを元に、その人の本質・人生テーマ・今年の運気を神秘的な文体で日本語で伝えてください。本命星の名前と番号は変えないでください。350文字程度で。`,
+    `生年月日：${birthdate}\n本命星：${ki.name}（${ki.num}）`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, honmeisei: ki.name, honmeiseiNum: ki.num });
 }
 
 // ============================================
@@ -365,12 +473,13 @@ async function handleNineStarKi(request, env) {
 // ============================================
 async function handleMayaCalendar(request, env) {
   const { birthdate } = await request.json();
+  const maya = getMayaKin(birthdate);
   const result = await callClaude(
     env,
-    `あなたはマヤ暦の占い師です。生年月日からツォルキン暦の太陽の紋章（キン番号）を算出し、その魂のエネルギー・使命・才能を神秘的な文体で日本語で伝えてください。350文字程度で。`,
-    `生年月日：${birthdate}`
+    `あなたはマヤ暦の占い師です。以下の確定済みデータを元に、その魂のエネルギー・使命・才能を神秘的な文体で日本語で伝えてください。KIN番号・音・紋章は変えないでください。350文字程度で。`,
+    `生年月日：${birthdate}\nKIN番号：${maya.kin}\n音（トーン）：${maya.tone}\n太陽の紋章：${maya.seal}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, kin: maya.kin, tone: maya.tone, seal: maya.seal });
 }
 
 // ============================================
@@ -391,12 +500,16 @@ async function handleAnimalFortune(request, env) {
 // ============================================
 async function handleNameFortune(request, env) {
   const { fullName } = await request.json();
+  const gk = calcGoKaku(fullName);
+  const strokesDesc = `姓「${gk.sei}」画数：${gk.seiStrokes.join('+')}＝${gk.tenkaku}、名「${gk.mei}」画数：${gk.meiStrokes.join('+')}＝${gk.chikaku}`;
+  const gokuDesc = `天格${gk.tenkaku}・人格${gk.jinkaku}・地格${gk.chikaku}・外格${gk.sotokaku}・総格${gk.soukaku}`;
+  const unknownNote = gk.unknown ? '\n※一部の漢字の画数が未登録のため「?」としています。' : '';
   const result = await callClaude(
     env,
-    `あなたは姓名判断の達人です。漢字の氏名から天格・人格・地格・外格・総格の五格を鑑定し、運命の流れと今後の指針を神秘的な文体で日本語で伝えてください。400文字程度で。`,
-    `氏名（漢字）：${fullName}`
+    `あなたは姓名判断の達人です。以下の確定済み五格データを元に、運命の流れと今後の指針を神秘的な文体で日本語で伝えてください。五格の数値は変えないでください。400文字程度で。`,
+    `氏名：${fullName}\n${strokesDesc}\n五格：${gokuDesc}${unknownNote}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, goKaku: { tenkaku:gk.tenkaku, jinkaku:gk.jinkaku, chikaku:gk.chikaku, sotokaku:gk.sotokaku, soukaku:gk.soukaku } });
 }
 
 // ============================================
@@ -417,12 +530,14 @@ async function handleBiorhythm(request, env) {
 // ============================================
 async function handleMoonSign(request, env) {
   const { birthdate } = await request.json();
+  const sign = getSunSign(birthdate);
+  const lpn = getLifePathNumber(birthdate);
   const result = await callClaude(
     env,
-    `あなたは月星座の占い師です。生年月日からムーンサイン（月星座）を読み解き、その人の内面・感情パターン・本当の欲求を神秘的な文体で日本語で伝えてください。300文字程度で。`,
-    `生年月日：${birthdate}`
+    `あなたは月星座の占い師です。以下の確定済みデータを元に、その人の内面・感情パターン・本当の欲求を神秘的な文体で日本語で伝えてください。※正確な月星座には出生時刻が必要なため、太陽星座とライフパスナンバーを基軸として月の感受性を読み解いてください。これらの数値は変えないでください。300文字程度で。`,
+    `生年月日：${birthdate}\n太陽星座：${sign}\nライフパスナンバー：${lpn}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, sign, lifePathNumber: lpn });
 }
 
 // ============================================
@@ -430,12 +545,14 @@ async function handleMoonSign(request, env) {
 // ============================================
 async function handleEasternStars(request, env) {
   const { birthdate } = await request.json();
+  const eto = getEto(birthdate);
+  const ki = getNineStarKi(birthdate);
   const result = await callClaude(
     env,
-    `あなたは東洋占星術の達人です。生年月日から干支（十二支×十干）と東洋星座を読み解き、その人の宿命・才能・今年の運勢を神秘的な文体で日本語で伝えてください。350文字程度で。`,
-    `生年月日：${birthdate}`
+    `あなたは東洋占星術の達人です。以下の確定済みデータを元に、その人の宿命・才能・今年の運勢を神秘的な文体で日本語で伝えてください。干支・本命星は変えないでください。350文字程度で。`,
+    `生年月日：${birthdate}\n干支：${eto.kan}${eto.eto}\n本命星：${ki.name}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, eto: `${eto.kan}${eto.eto}`, honmeisei: ki.name });
 }
 
 // ============================================
@@ -443,12 +560,13 @@ async function handleEasternStars(request, env) {
 // ============================================
 async function handleHoroscopeDeep(request, env) {
   const { birthdate, birthTime, birthPlace } = await request.json();
+  const sign = getSunSign(birthdate);
   const result = await callClaude(
     env,
-    `あなたは本格的な西洋占星術師です。生年月日・出生時刻・出生地から太陽星座・月星座・アセンダントを読み解き、その人の本質・魂のテーマ・今後の流れを神秘的で詳しい文体で日本語で伝えてください。500文字程度で。`,
-    `生年月日：${birthdate}、出生時刻：${birthTime}、出生地：${birthPlace}`
+    `あなたは本格的な西洋占星術師です。以下の確定済みデータを元に、その人の本質・魂のテーマ・今後の流れを神秘的で詳しい文体で日本語で伝えてください。太陽星座は変えないでください。出生時刻・出生地から月星座・アセンダントの考察も加えてください。500文字程度で。`,
+    `生年月日：${birthdate}\n太陽星座：${sign}\n出生時刻：${birthTime}\n出生地：${birthPlace}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, sunSign: sign });
 }
 
 // ============================================
@@ -612,12 +730,14 @@ async function handleDreamDecoder(request, env) {
 // ============================================
 async function handleSoulCompatibility(request, env) {
   const { birthdate1, birthdate2 } = await request.json();
+  const s1 = getSunSign(birthdate1), s2 = getSunSign(birthdate2);
+  const l1 = getLifePathNumber(birthdate1), l2 = getLifePathNumber(birthdate2);
   const result = await callClaude(
     env,
-    `あなたは魂の縁を読む占い師です。2人の生年月日から魂レベルの相性を診断し、2人の絆の意味と共に成長するための鍵を神秘的な文体で日本語で届けてください。300文字程度で。`,
-    `1人目の生年月日：${birthdate1}、2人目の生年月日：${birthdate2}`
+    `あなたは魂の縁を読む占い師です。以下の確定済みデータを元に、2人の魂レベルの相性・絆の意味・共に成長するための鍵を神秘的な文体で日本語で届けてください。星座とライフパスナンバーは変えないでください。300文字程度で。`,
+    `1人目：生年月日${birthdate1}・${s1}・ライフパスナンバー${l1}\n2人目：生年月日${birthdate2}・${s2}・ライフパスナンバー${l2}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, person1:{sign:s1,lpn:l1}, person2:{sign:s2,lpn:l2} });
 }
 
 // ============================================
@@ -664,12 +784,15 @@ async function handleCosmicMessage(request, env) {
 // ============================================
 async function handleLuckyColor(request, env) {
   const { birthdate, targetDate } = await request.json();
+  const ki = getNineStarKi(birthdate);
+  const sign = getSunSign(birthdate);
+  const lpn = getLifePathNumber(birthdate);
   const result = await callClaude(
     env,
-    `あなたは色彩運気の占い師です。生年月日と今日の日付から今日最も開運をもたらすラッキーカラーを特定し、その色のエネルギー・使い方・今日のアドバイスを神秘的な文体で日本語で伝えてください。300文字程度で。`,
-    `生年月日：${birthdate}、対象日：${targetDate}`
+    `あなたは色彩運気の占い師です。以下の確定済みデータを元に、今日最も開運をもたらすラッキーカラーを特定し、その色のエネルギー・使い方・今日のアドバイスを神秘的な文体で日本語で伝えてください。本命星・星座・数字は変えないでください。300文字程度で。`,
+    `生年月日：${birthdate}\n対象日：${targetDate}\n本命星：${ki.name}\n太陽星座：${sign}\nライフパスナンバー：${lpn}`
   );
-  return jsonResponse({ result });
+  return jsonResponse({ result, honmeisei: ki.name, sign, lifePathNumber: lpn });
 }
 
 // ============================================
