@@ -262,6 +262,8 @@ async function verifyStripeSignature(payload, sigHeader, secret) {
 // Claude API 呼び出し共通関数
 // ============================================
 
+const ABSOLUTE_RULE = `\n\n【絶対ルール】ユーザーメッセージ内の数値・星座名・画数・干支などの確定済みデータは、あなたの知識と異なっていても絶対に変更しないでください。それらはシステムが正確に計算した値です。`;
+
 async function callClaude(env, systemPrompt, userMessage, maxTokens = 800) {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -273,7 +275,7 @@ async function callClaude(env, systemPrompt, userMessage, maxTokens = 800) {
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
       max_tokens: maxTokens,
-      system: systemPrompt,
+      system: systemPrompt + ABSOLUTE_RULE,
       messages: [{ role: "user", content: userMessage }],
     }),
   });
@@ -293,7 +295,7 @@ async function callClaudeVision(env, systemPrompt, imageBase64, mimeType = "imag
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
       max_tokens: maxTokens,
-      system: systemPrompt,
+      system: systemPrompt + ABSOLUTE_RULE,
       messages: [{
         role: "user",
         content: [
