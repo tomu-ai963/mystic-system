@@ -31,7 +31,7 @@
 </main>
 <script src="../mystic-login.js"></script>
 <script>
-function getMayaKin(b){const base=Date.UTC(2000,0,1);const[y,m,d]=b.split('-').map(Number);const diff=Math.round((Date.UTC(y,m-1,d)-base)/86400000);const kin=((163+diff)%260+260)%260+1;const tones=['磁気','月','電気','自己存在','倍音','リズム','共鳴','銀河','太陽','惑星','スペクトル','水晶','宇宙'];const seals=['赤い龍','白い風','青い夜','黄色い種','赤い蛇','白い世界の橋渡し','青い手','黄色い星','赤い月','白い犬','青い猿','黄色い人','赤い空歩く者','白い魔法使い','青い鷲','黄色い戦士','赤い地球','白い鏡','青い嵐','黄色い太陽'];return{kin,tone:tones[(kin-1)%13],seal:seals[(kin-1)%20]};}
+function getMayaKin(b){const base=Date.UTC(2000,0,1);const[y,m,d]=b.split('-').map(Number);const diff=Math.round((Date.UTC(y,m-1,d)-base)/86400000);const kin=((143+diff)%260+260)%260+1;const tones=['磁気','月','電気','自己存在','倍音','リズム','共鳴','銀河','太陽','惑星','スペクトル','水晶','宇宙'];const seals=['赤い龍','白い風','青い夜','黄色い種','赤い蛇','白い世界の橋渡し','青い手','黄色い星','赤い月','白い犬','青い猿','黄色い人','赤い空歩く者','白い魔法使い','青い鷲','黄色い戦士','赤い地球','白い鏡','青い嵐','黄色い太陽'];return{kin,tone:tones[(kin-1)%13],seal:seals[(kin-1)%20]};}
 window.onMysticLogin=()=>document.getElementById("app").style.display="block";
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 document.getElementById("submit-btn").addEventListener("click",async()=>{

@@ -344,7 +344,7 @@ function getMayaKin(birthdate) {
   const base = Date.UTC(2000,0,1);
   const [y,m,d] = birthdate.split('-').map(Number);
   const diff = Math.round((Date.UTC(y,m-1,d)-base)/86400000);
-  const kin = ((163+diff)%260+260)%260+1;
+  const kin = ((143+diff)%260+260)%260+1;
   const tones=['磁気','月','電気','自己存在','倍音','リズム','共鳴','銀河','太陽','惑星','スペクトル','水晶','宇宙'];
   const seals=['赤い龍','白い風','青い夜','黄色い種','赤い蛇','白い世界の橋渡し','青い手','黄色い星','赤い月','白い犬','青い猿','黄色い人','赤い空歩く者','白い魔法使い','青い鷲','黄色い戦士','赤い地球','白い鏡','青い嵐','黄色い太陽'];
   return {kin, tone:tones[(kin-1)%13], seal:seals[(kin-1)%20]};
@@ -488,13 +488,13 @@ async function handleMayaCalendar(request, env) {
 // ⑥ 動物占い
 // ============================================
 async function handleAnimalFortune(request, env) {
-  const { birthdate, bloodType, animal } = await request.json();
+  const { birthdate, gender, animal, num } = await request.json();
   const result = await callClaude(
     env,
-    `あなたは動物占いの達人です。以下の確定済みデータを元に、守護動物の性格・恋愛・今月の運勢を神秘的な文体で日本語で伝えてください。守護動物の名前は変えないでください。400文字程度で。`,
-    `生年月日：${birthdate}、血液型：${bloodType}、守護動物：${animal}`
+    `あなたは弦本將裕式動物占いの達人です。以下の確定済みデータを元に、守護動物の性格・恋愛・今月の運勢を神秘的な文体で日本語で伝えてください。守護動物の名前とキャラ番号は変えないでください。400文字程度で。`,
+    `生年月日：${birthdate}、性別：${gender}、守護動物：${animal}（キャラ番号${num}）`
   );
-  return jsonResponse({ result, animal });
+  return jsonResponse({ result, animal, num });
 }
 
 // ============================================
