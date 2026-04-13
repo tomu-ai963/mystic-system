@@ -488,13 +488,13 @@ async function handleMayaCalendar(request, env) {
 // ⑥ 動物占い
 // ============================================
 async function handleAnimalFortune(request, env) {
-  const { birthdate, gender, animal, num } = await request.json();
+  const { birthdate, animal } = await request.json();
   const result = await callClaude(
     env,
-    `あなたは弦本將裕式動物占いの達人です。以下の確定済みデータを元に、守護動物の性格・恋愛・今月の運勢を神秘的な文体で日本語で伝えてください。守護動物の名前とキャラ番号は変えないでください。400文字程度で。`,
-    `生年月日：${birthdate}、性別：${gender}、守護動物：${animal}（キャラ番号${num}）`
+    `あなたは動物キャラナビの占い師です。「${animal}」タイプの人の性格・運勢・対人関係をスピリチュアルな観点で200字程度で鑑定してください。`,
+    `生年月日：${birthdate}、守護動物：${animal}`
   );
-  return jsonResponse({ result, animal, num });
+  return jsonResponse({ result, animal });
 }
 
 // ============================================
