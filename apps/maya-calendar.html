@@ -31,7 +31,54 @@
 </main>
 <script src="../mystic-login.js"></script>
 <script>
-function getMayaKin(b){const base=Date.UTC(2000,0,1);const[y,m,d]=b.split('-').map(Number);const diff=Math.round((Date.UTC(y,m-1,d)-base)/86400000);const kin=((143+diff)%260+260)%260+1;const tones=['磁気','月','電気','自己存在','倍音','リズム','共鳴','銀河','太陽','惑星','スペクトル','水晶','宇宙'];const seals=['赤い龍','白い風','青い夜','黄色い種','赤い蛇','白い世界の橋渡し','青い手','黄色い星','赤い月','白い犬','青い猿','黄色い人','赤い空歩く者','白い魔法使い','青い鷲','黄色い戦士','赤い地球','白い鏡','青い嵐','黄色い太陽'];return{kin,tone:tones[(kin-1)%13],seal:seals[(kin-1)%20]};}
+function getMayaKin(birthdate) {
+  let [y, m, d] = birthdate.split('-').map(Number);
+
+  // うるう年の2/29はマヤ暦に存在しない → 3/1と同じKINにする
+  const isLeapDay = (m === 2 && d === 29);
+  if (isLeapDay) { m = 3; d = 1; }
+
+  // 2000/01/01を基点に日数差を計算
+  const base = Date.UTC(2000, 0, 1);
+  const target = Date.UTC(y, m - 1, d);
+  let diff = Math.round((target - base) / 86400000);
+
+  // うるう年2/29をスキップした分を補正（基準日と対象日の間にある2/29の数を引く）
+  const startYear = Math.min(y, 2000);
+  const endYear   = Math.max(y, 2000);
+  let leapCount = 0;
+  for (let ly = startYear; ly <= endYear; ly++) {
+    if ((ly % 4 === 0 && ly % 100 !== 0) || ly % 400 === 0) {
+      const leapDay = Date.UTC(ly, 1, 29); // 2/29
+      const s = Math.min(target, base);
+      const e = Math.max(target, base);
+      if (leapDay > s && leapDay <= e) leapCount++;
+    }
+  }
+  if (y >= 2000) diff -= leapCount;
+  else           diff += leapCount;
+
+  const kin = ((152 + diff) % 260 + 260) % 260 + 1;
+
+  const tones = ['磁気','月','電気','自己存在','倍音','リズム','共鳴',
+                 '銀河','太陽','惑星','スペクトル','水晶','宇宙'];
+  const seals = ['赤い龍','白い風','青い夜','黄色い種','赤い蛇','白い世界の橋渡し',
+                 '青い手','黄色い星','赤い月','白い犬','青い猿','黄色い人',
+                 '赤い空歩く者','白い魔法使い','青い鷲','黄色い戦士',
+                 '赤い地球','白い鏡','青い嵐','黄色い太陽'];
+
+  const wavespell = Math.floor((kin - 1) / 13) + 1;
+
+  return {
+    kin,
+    tone: tones[(kin - 1) % 13],
+    seal: seals[(kin - 1) % 20],
+    wavespell,
+    wavespellSeal: seals[((wavespell - 1) * 13) % 20],
+    isLeapDay,
+  };
+}
+
 window.onMysticLogin=()=>document.getElementById("app").style.display="block";
 document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
 document.getElementById("submit-btn").addEventListener("click",async()=>{
@@ -39,13 +86,24 @@ document.getElementById("submit-btn").addEventListener("click",async()=>{
   if(!v){alert("生年月日を入力してください");return;}
   const maya=getMayaKin(v);
   const cd=document.getElementById("calc-display");
-  cd.textContent=`KIN：${maya.kin} ／ 音（トーン）：${maya.tone} ／ 太陽の紋章：${maya.seal}`;cd.style.display="block";
+  cd.textContent=`KIN：${maya.kin} ／ 太陽の紋章：${maya.seal} ／ ウェーブスペル：${maya.wavespell}（${maya.wavespellSeal}のウェーブスペル）／ 音：${maya.tone}`;
+  cd.style.display="block";
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
   const rt=document.getElementById("result-text");
   btn.disabled=true;btn.textContent="宇宙の暦を読んでいます...";
   res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
-  try{const d=await MysticAuth.callApi("/mystic/maya-calendar",{birthdate:v,kin:maya.kin,tone:maya.tone,seal:maya.seal});rt.textContent=d.result;}
+  try{
+    const d=await MysticAuth.callApi("/mystic/maya-calendar",{
+      birthdate:v,
+      kin:maya.kin,
+      tone:maya.tone,
+      seal:maya.seal,
+      wavespell:maya.wavespell,
+      wavespellSeal:maya.wavespellSeal,
+    });
+    rt.textContent=d.result;
+  }
   catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
   finally{btn.disabled=false;btn.textContent="太陽の紋章を解読する";}
 });
