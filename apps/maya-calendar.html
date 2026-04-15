@@ -68,10 +68,12 @@ function getMayaKin(birthdate) {
                  '赤い地球','白い鏡','青い嵐','黄色い太陽'];
 
   const wavespell = Math.floor((kin - 1) / 13) + 1;
+  const toneNumber = ((kin - 1) % 13) + 1;
 
   return {
     kin,
     tone: tones[(kin - 1) % 13],
+    toneNumber,
     seal: seals[(kin - 1) % 20],
     wavespell,
     wavespellSeal: seals[((wavespell - 1) * 13) % 20],
@@ -86,7 +88,7 @@ document.getElementById("submit-btn").addEventListener("click",async()=>{
   if(!v){alert("生年月日を入力してください");return;}
   const maya=getMayaKin(v);
   const cd=document.getElementById("calc-display");
-  cd.textContent=`KIN：${maya.kin} ／ 太陽の紋章：${maya.seal} ／ ウェーブスペル：${maya.wavespell}（${maya.wavespellSeal}のウェーブスペル）／ 音：${maya.tone}`;
+  cd.textContent=`KIN：${maya.kin} ／ 太陽の紋章：${maya.seal} ／ ウェーブスペル：${maya.wavespellSeal}のウェーブスペル ／ 音：${maya.toneNumber}`;
   cd.style.display="block";
   const btn=document.getElementById("submit-btn");
   const res=document.getElementById("result");
@@ -98,6 +100,7 @@ document.getElementById("submit-btn").addEventListener("click",async()=>{
       birthdate:v,
       kin:maya.kin,
       tone:maya.tone,
+      toneNumber:maya.toneNumber,
       seal:maya.seal,
       wavespell:maya.wavespell,
       wavespellSeal:maya.wavespellSeal,

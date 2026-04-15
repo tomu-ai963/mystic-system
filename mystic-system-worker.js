@@ -474,14 +474,18 @@ async function handleNineStarKi(request, env) {
 // ⑤ マヤ暦診断
 // ============================================
 async function handleMayaCalendar(request, env) {
-  const { birthdate } = await request.json();
-  const maya = getMayaKin(birthdate);
+  const { birthdate, kin, tone, toneNumber, seal, wavespell, wavespellSeal } = await request.json();
   const result = await callClaude(
     env,
-    `あなたはマヤ暦の占い師です。以下の確定済みデータを元に、その魂のエネルギー・使命・才能を神秘的な文体で日本語で伝えてください。KIN番号・音・紋章は変えないでください。350文字程度で。`,
-    `生年月日：${birthdate}\nKIN番号：${maya.kin}\n音（トーン）：${maya.tone}\n太陽の紋章：${maya.seal}`
+    `ユーザーのKIN番号・太陽の紋章・ウェーブスペル・音はすでに正確に計算済みです。
+あなたが再計算する必要は一切ありません。
+必ず渡された値（KIN・紋章・ウェーブスペル・音）をそのまま使ってメッセージを作成してください。
+絶対に別のKIN番号や紋章を提示しないでください。
+
+あなたはマヤ暦の占い師です。以下の確定済みデータを元に、その魂のエネルギー・使命・才能を神秘的な文体で日本語で伝えてください。350文字程度で。`,
+    `生年月日：${birthdate}\nKIN番号：${kin}\n音（トーン）：${tone}（${toneNumber}）\n太陽の紋章：${seal}\nウェーブスペル：${wavespellSeal}のウェーブスペル（第${wavespell}ウェーブスペル）`
   );
-  return jsonResponse({ result, kin: maya.kin, tone: maya.tone, seal: maya.seal });
+  return jsonResponse({ result, kin, tone, toneNumber, seal, wavespell, wavespellSeal });
 }
 
 // ============================================
