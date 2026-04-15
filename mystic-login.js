@@ -268,6 +268,16 @@ function onLoginSuccess() {
   } else {
     location.reload();
   }
+  // 各アプリの #birthdate に保存済み生年月日を自動セット
+  const el = document.getElementById("birthdate");
+  if (el) {
+    const val = sessionStorage.getItem("mystic_birthdate_temp") || localStorage.getItem("mystic_birthdate");
+    if (val) el.value = val;
+    // アプリ内で変更した場合はセッション中のみ一時保存
+    el.addEventListener("change", () => {
+      sessionStorage.setItem("mystic_birthdate_temp", el.value);
+    });
+  }
 }
 
 // ============================================

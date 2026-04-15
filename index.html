@@ -18,6 +18,11 @@
     <p class="hub-desc">星・数・魂が紡ぐ、あなただけの神秘へ</p>
   </div>
 
+  <div id="birthdate-panel" class="card" style="max-width:480px;margin:0 auto 1.8rem;">
+    <p style="font-size:.82rem;color:var(--muted);margin:0 0 .75rem;">あなたの生年月日を登録すると各アプリに自動入力されます</p>
+    <div id="birthdate-status"></div>
+  </div>
+
   <div class="hub-section">▷ 星座・宿命</div>
   <div class="hub-grid">
     <a href="apps/star-reading.html" class="hub-card"><span class="hub-card-icon">⭐</span><span class="hub-card-num">①</span><span class="hub-card-label">今日の星読み</span></a>
@@ -82,7 +87,42 @@
 <script>
 window.onMysticLogin = () => {
   document.getElementById("app").style.display = "block";
+  renderBirthdatePanel();
 };
+
+function renderBirthdatePanel() {
+  const saved = localStorage.getItem("mystic_birthdate");
+  const status = document.getElementById("birthdate-status");
+  if (saved) {
+    status.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+        <span style="color:var(--text);font-size:.9rem;">📅 ${saved}</span>
+        <button id="birthdate-change-btn" style="background:none;border:1px solid var(--accent);color:var(--accent);padding:.3rem .8rem;border-radius:.4rem;cursor:pointer;font-size:.8rem;white-space:nowrap;">変更する</button>
+      </div>`;
+    document.getElementById("birthdate-change-btn").addEventListener("click", showBirthdateInput);
+  } else {
+    showBirthdateInput();
+  }
+}
+
+function showBirthdateInput() {
+  const status = document.getElementById("birthdate-status");
+  const saved = localStorage.getItem("mystic_birthdate");
+  status.innerHTML = `
+    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+      <input type="date" id="birthdate-input" min="1921-01-01" max="2030-12-31"
+        style="flex:1;min-width:140px;padding:.5rem .7rem;background:rgba(130,80,255,.08);border:1px solid rgba(130,80,255,.3);border-radius:.5rem;color:var(--text);font-size:.9rem;"/>
+      <button id="birthdate-save-btn" class="submit-btn" style="padding:.5rem 1.2rem;font-size:.85rem;">保存する</button>
+    </div>`;
+  if (saved) document.getElementById("birthdate-input").value = saved;
+  document.getElementById("birthdate-save-btn").addEventListener("click", () => {
+    const val = document.getElementById("birthdate-input").value;
+    if (!val) { alert("生年月日を選択してください"); return; }
+    localStorage.setItem("mystic_birthdate", val);
+    renderBirthdatePanel();
+  });
+}
+
 document.getElementById("logout-btn").addEventListener("click", () => {
   MysticAuth.logout();
   location.reload();
