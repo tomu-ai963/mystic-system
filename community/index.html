@@ -178,10 +178,10 @@
     <div class="cm-group">
       <label class="cm-label" for="cm-app">占いの種類</label>
       <select id="cm-app" class="cm-select">
-        <optgroup label="星座・宿命">
+        <optgroup label="星座・ライフパターン">
           <option>今日の星読み</option>
           <option>数秘術診断</option>
-          <option>守護星特定</option>
+          <option>守護星診断</option>
           <option>九星気学</option>
           <option>マヤ暦診断</option>
           <option>動物占い</option>
@@ -197,7 +197,7 @@
           <option>オラクルカード</option>
           <option>九宮格診断</option>
         </optgroup>
-        <optgroup label="魂・前世・使命">
+        <optgroup label="前世・魂・ライフテーマ">
           <option>前世診断</option>
           <option>前世の職業</option>
           <option>魂の使命診断</option>
@@ -213,7 +213,7 @@
           <option>月相ジャーナル</option>
           <option>宇宙メッセージ</option>
         </optgroup>
-        <optgroup label="開運・ヒーリング">
+        <optgroup label="ウェルネス・ヒーリング">
           <option>今日の開運カラー</option>
           <option>パワーストーン</option>
           <option>手相占い</option>
@@ -254,6 +254,12 @@
   function saveLiked() { localStorage.setItem("community_liked", JSON.stringify([...likedPosts])); }
 
   /* ── ユーティリティ ── */
+  /* 旧名称で保存済みのKV投稿を、表示時のみ新名称へ変換（KVデータ自体は不変）。
+     マッピングに無い名称はそのまま表示（フォールバック）。 */
+  const LEGACY_APP_NAMES = { "守護星特定": "守護星診断" };
+  function displayAppName(name) {
+    return LEGACY_APP_NAMES[name] || name;
+  }
   function escHtml(str) {
     return String(str)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -291,7 +297,7 @@
         '<div class="cm-avatar">' + escHtml(initial) + '</div>' +
         '<div class="cm-meta">' +
           '<span class="cm-username">' + escHtml(post.username) + '</span>' +
-          '<span class="cm-app">' + escHtml(post.appName) + '</span>' +
+          '<span class="cm-app">' + escHtml(displayAppName(post.appName)) + '</span>' +
         '</div>' +
         '<span class="cm-date">' + formatDate(post.createdAt) + '</span>' +
       '</div>' +
