@@ -249,7 +249,7 @@ function renderLoginModal() {
       <div class="mystic-modal-box">
         <div class="mystic-modal-star">✦</div>
         <h2 class="mystic-modal-title">とむMYSTIC</h2>
-        <p class="mystic-modal-subtitle">星の導きへ、メールアドレスでログイン</p>
+        <p class="mystic-modal-subtitle">メールアドレスでログイン</p>
         <input
           id="mystic-email-input"
           type="email"
@@ -322,12 +322,12 @@ function renderSubscriptionModal() {
       <div class="mystic-modal-box">
         <div class="mystic-modal-star">☽</div>
         <h2 class="mystic-modal-title">サブスクリプション</h2>
-        <p class="mystic-modal-subtitle">月額 ¥780 で全30アプリにフルアクセス</p>
+        <p class="mystic-modal-subtitle">月額 ¥780 で全30種のAI占い・自己分析アプリにフルアクセス</p>
         <ul class="mystic-plan-list">
-          <li>✦ 星読み・タロット・数秘術</li>
-          <li>✦ 守護星・魂の相性診断</li>
-          <li>✦ 前世リーディング・夢解読</li>
-          <li>✦ 月のジャーナル・宇宙のお告げ</li>
+          <li>✦ 星読み・タロット・数秘術のAI分析</li>
+          <li>✦ 守護星・相性のAIパターン分析</li>
+          <li>✦ 前世テーマ・夢のAI解読</li>
+          <li>✦ 月相ジャーナル・宇宙からのメッセージ</li>
           <li>✦ 手相占い（画像AI解析）</li>
         </ul>
         <div class="mystic-price-badge">月額 ¥780（税込）</div>
@@ -335,6 +335,7 @@ function renderSubscriptionModal() {
           今すぐ始める ✦
         </button>
         <p id="mystic-sub-error" class="mystic-modal-error"></p>
+        <p class="mystic-modal-note">※本サービスは統計的パターンとAIによる自己分析コンテンツです</p>
         <p class="mystic-modal-note">Stripeの安全な決済ページへ移動します</p>
       </div>
     </div>
