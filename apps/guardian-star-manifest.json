@@ -1,6 +1,6 @@
 {
-  "name": "守護星特定 | とむMYSTIC",
-  "short_name": "守護星特定",
+  "name": "守護星診断 | とむMYSTIC",
+  "short_name": "守護星診断",
   "start_url": "./guardian-star.html",
   "display": "standalone",
   "background_color": "#0d0d1a",
