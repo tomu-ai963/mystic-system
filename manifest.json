@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#0d0d1a",
   "theme_color": "#9b59b6",
-  "description": "神秘と直感のAI占いアプリ集",
+  "description": "統計とAIで読み解く、占い・自己分析アプリ集",
   "icons": [
     { "src": "common/icons/icon-mystic-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "common/icons/icon-mystic-512.png", "sizes": "512x512", "type": "image/png" }
