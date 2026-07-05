@@ -20,6 +20,7 @@
 //   profile:<userId>                 → プロフィール { name, birthdate, ... }
 //   history:<userId>                 → 旧・占い結果履歴（D1へ移行。フォールバック/移行元として保持）
 //   rate:<type>:<id>:<YYYY-MM-DD-HH> → レートリミットカウンタ（expirationTtl=3600）
+//   stripe_sub:<subscriptionId>      → userId（Stripe継続課金/解約イベントの逆引き）
 //   feed:index / post:<id> / like:<postId>:<userId> → コミュニティ（みんなの占い結果）
 //
 // 占い種別の正規名（action）は ALLOWED_ACTIONS / READINGS のキーが正、
@@ -999,8 +1000,135 @@ async function handleStripeCheckout(request, env) {
 }
 
 // ============================================
-// Stripe Webhook 受信・サブスク有効化
+// Stripe Webhook 受信・サブスクのライフサイクル管理
+// 対応イベント（STRIPE_EVENT_HANDLERS）:
+//   checkout.session.completed  → 初回決済: サブスク有効化＋逆引きキー保存
+//   invoice.payment_succeeded   → 継続課金: expires を課金期間終了日に同期
+//   customer.subscription.deleted → 解約: active=false で即失効
+// invoice/subscription イベントには userId が載らないため、
+// stripe_sub:<subscriptionId> → userId の逆引きキーで突合する。
+// 逆引きキー導入前の既存サブスクは KV 走査（無プレフィックスの userId キーのみ）
+// で突合し、見つかれば逆引きキーを書いて自己修復する。
 // ============================================
+
+const STRIPE_SUB_PREFIX = "stripe_sub:";
+
+// 既存のサブスクリプション情報（userId 直キー）を読む。壊れていれば {}。
+async function getKvSubscription(env, userId) {
+  try {
+    const raw = await env.MYSTIC_SUBSCRIPTIONS.get(userId);
+    const sub = raw ? JSON.parse(raw) : null;
+    return (sub && typeof sub === "object" && !Array.isArray(sub)) ? sub : {};
+  } catch {
+    return {};
+  }
+}
+
+// invoice からサブスクリプションIDを取り出す。
+// 旧APIバージョンは invoice.subscription（文字列）、
+// 2025年以降のAPIバージョンは invoice.parent.subscription_details.subscription。
+function stripeInvoiceSubscriptionId(invoice) {
+  if (typeof invoice?.subscription === "string" && invoice.subscription) return invoice.subscription;
+  const nested = invoice?.parent?.subscription_details?.subscription;
+  if (typeof nested === "string" && nested) return nested;
+  if (nested && typeof nested.id === "string") return nested.id; // expand されている場合
+  return null;
+}
+
+// invoice の明細行から課金期間の終了日（unix秒）を取り出す。
+// 継続課金のinvoiceでは行の period.end がサブスクの current_period_end と一致する。
+function stripeInvoicePeriodEnd(invoice) {
+  const lines = invoice?.lines?.data;
+  if (!Array.isArray(lines) || !lines.length) return null;
+  const ends = lines.map(l => l?.period?.end).filter(e => Number.isFinite(e) && e > 0);
+  return ends.length ? Math.max(...ends) : null;
+}
+
+// subscriptionId → userId の突合。逆引きキー優先、なければKV走査で自己修復。
+async function findUserIdByStripeSub(env, subscriptionId) {
+  if (!subscriptionId) return null;
+  const cached = await env.MYSTIC_SUBSCRIPTIONS.get(STRIPE_SUB_PREFIX + subscriptionId);
+  if (cached) return cached;
+
+  // 逆引きキー導入前のサブスク: userId キーは btoa(email) で ":" を含まない。
+  // プレフィックス付きキー（session:/history:/rate: 等）は ":" を含むので除外できる。
+  let cursor;
+  do {
+    const list = await env.MYSTIC_SUBSCRIPTIONS.list({ cursor });
+    for (const key of list.keys) {
+      if (key.name.includes(":")) continue;
+      const sub = await getKvSubscription(env, key.name);
+      if (sub.stripeSubscriptionId === subscriptionId) {
+        // 自己修復: 次回以降は逆引きキーで即解決
+        await env.MYSTIC_SUBSCRIPTIONS.put(STRIPE_SUB_PREFIX + subscriptionId, key.name);
+        return key.name;
+      }
+    }
+    cursor = list.list_complete ? undefined : list.cursor;
+  } while (cursor);
+  return null;
+}
+
+const STRIPE_EVENT_HANDLERS = {
+  // 初回決済完了 → サブスク有効化（従来ロジック）＋逆引きキー保存
+  "checkout.session.completed": async (session, env) => {
+    const userId = session.metadata?.userId;
+    if (!userId) return;
+    const expires = new Date();
+    expires.setMonth(expires.getMonth() + 1);
+    await env.MYSTIC_SUBSCRIPTIONS.put(userId, JSON.stringify({
+      active: true,
+      plan: "mystic",
+      stripeCustomerId: session.customer,
+      stripeSubscriptionId: session.subscription,
+      expires: expires.toISOString(),
+      createdAt: new Date().toISOString(),
+    }));
+    if (session.subscription) {
+      await env.MYSTIC_SUBSCRIPTIONS.put(STRIPE_SUB_PREFIX + session.subscription, userId);
+    }
+  },
+
+  // 継続課金成功 → expires を課金期間の終了日に同期（期間が取れない場合は+1ヶ月）
+  // 初回invoiceが checkout.session.completed より先に届いた場合は userId 未解決で
+  // スキップされ得るが、checkout 側が有効化するので実害はない（次回更新で同期される）。
+  "invoice.payment_succeeded": async (invoice, env) => {
+    const subscriptionId = stripeInvoiceSubscriptionId(invoice);
+    if (!subscriptionId) return; // サブスク由来でない invoice は対象外
+    const userId = await findUserIdByStripeSub(env, subscriptionId);
+    if (!userId) {
+      console.error(`invoice.payment_succeeded: userId 未解決 (subscription=${subscriptionId})`);
+      return;
+    }
+    const periodEnd = stripeInvoicePeriodEnd(invoice);
+    const expires = periodEnd ? new Date(periodEnd * 1000) : new Date();
+    if (!periodEnd) expires.setMonth(expires.getMonth() + 1);
+    const sub = await getKvSubscription(env, userId);
+    await env.MYSTIC_SUBSCRIPTIONS.put(userId, JSON.stringify({
+      ...sub,
+      active: true,
+      plan: sub.plan || "mystic",
+      stripeSubscriptionId: subscriptionId,
+      expires: expires.toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+  },
+
+  // 解約（期間終了時・即時解約とも Stripe から届く）→ 即失効
+  "customer.subscription.deleted": async (subscription, env) => {
+    const userId = await findUserIdByStripeSub(env, subscription?.id);
+    if (!userId) {
+      console.error(`customer.subscription.deleted: userId 未解決 (subscription=${subscription?.id})`);
+      return;
+    }
+    const sub = await getKvSubscription(env, userId);
+    await env.MYSTIC_SUBSCRIPTIONS.put(userId, JSON.stringify({
+      ...sub,
+      active: false,
+      canceledAt: new Date().toISOString(),
+    }));
+  },
+};
 
 async function handleStripeWebhook(request, env) {
   const signature = request.headers.get("stripe-signature");
@@ -1015,22 +1143,9 @@ async function handleStripeWebhook(request, env) {
 
   const event = JSON.parse(body);
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const userId = session.metadata?.userId;
-    if (userId) {
-      const expires = new Date();
-      expires.setMonth(expires.getMonth() + 1);
-      await env.MYSTIC_SUBSCRIPTIONS.put(userId, JSON.stringify({
-        active: true,
-        plan: "mystic",
-        stripeCustomerId: session.customer,
-        stripeSubscriptionId: session.subscription,
-        expires: expires.toISOString(),
-        createdAt: new Date().toISOString(),
-      }));
-    }
-  }
+  // ハンドラ内の例外はグローバルcatchで500になり、Stripe側の自動再送に乗る。
+  const handler = STRIPE_EVENT_HANDLERS[event.type];
+  if (handler) await handler(event.data?.object, env);
 
   return jsonResponse({ received: true });
 }
@@ -1955,18 +2070,6 @@ th {
   letter-spacing: 0.04em;
 }
 td { background: var(--surface); color: var(--text); }
-.price-list { margin: 0; padding: 0; list-style: none; }
-.price-list li { padding: 0.25rem 0; display: flex; align-items: baseline; gap: 0.6rem; }
-.price-badge {
-  display: inline-block;
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 0.65rem;
-  padding: 0.1rem 0.55rem;
-  border-radius: 3px;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
 .effective-date { font-size: 0.8rem; color: var(--muted); margin-bottom: 2.5rem; }
 .back-link {
   display: inline-flex;
@@ -2025,13 +2128,7 @@ ${MYSTIC_LEGAL_NAV}
     </tr>
     <tr>
       <th>販売価格</th>
-      <td>
-        <ul class="price-list">
-          <li><span class="price-badge">ライト</span>月額 480円（税込）</li>
-          <li><span class="price-badge">スタンダード</span>月額 980円（税込）</li>
-          <li><span class="price-badge">フル</span>月額 1,480円（税込）</li>
-        </ul>
-      </td>
+      <td>月額 780円（税込）</td>
     </tr>
     <tr>
       <th>支払方法</th>
