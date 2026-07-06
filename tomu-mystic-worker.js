@@ -1191,13 +1191,18 @@ async function callClaude(env, systemPrompt, userMessage, maxTokens = 800) {
     body: JSON.stringify({
       model: "claude-sonnet-5",
       max_tokens: maxTokens,
+      // claude-sonnet-5 は thinking 未指定だと adaptive thinking がデフォルト有効。
+      // thinking ブロックが content 先頭に入り max_tokens も消費するため明示的に無効化。
+      thinking: { type: "disabled" },
       system: systemPrompt + ABSOLUTE_RULE,
       messages: [{ role: "user", content: userMessage }],
     }),
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "API Error");
-  return data.content[0].text;
+  const text = data.content?.find(b => b.type === "text")?.text;
+  if (!text) throw new Error(`AI応答にテキストがありません (stop_reason: ${data.stop_reason})`);
+  return text;
 }
 
 async function callClaudeVision(env, systemPrompt, imageBase64, mimeType = "image/jpeg", maxTokens = 800) {
@@ -1211,6 +1216,7 @@ async function callClaudeVision(env, systemPrompt, imageBase64, mimeType = "imag
     body: JSON.stringify({
       model: "claude-sonnet-5",
       max_tokens: maxTokens,
+      thinking: { type: "disabled" },
       system: systemPrompt + ABSOLUTE_RULE,
       messages: [{
         role: "user",
@@ -1223,7 +1229,9 @@ async function callClaudeVision(env, systemPrompt, imageBase64, mimeType = "imag
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "API Error");
-  return data.content[0].text;
+  const text = data.content?.find(b => b.type === "text")?.text;
+  if (!text) throw new Error(`AI応答にテキストがありません (stop_reason: ${data.stop_reason})`);
+  return text;
 }
 
 // ============================================
