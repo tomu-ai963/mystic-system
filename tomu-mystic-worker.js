@@ -1344,10 +1344,11 @@ function calcGoKaku(fullName) {
 const READINGS = {
   // ① 今日の星読み
   "star-reading": {
-    system: `あなたは神秘的な星読み師です。以下の確定済みデータを元に、今日の星の配置に基づいたメッセージを詩的で神秘的な文体で日本語で届けてください。星座の判定は変えないでください。200〜300文字程度で。`,
+    system: `あなたは神秘的な星読み師です。以下の確定済みデータを元に、今日の星の配置に基づいたメッセージを詩的で神秘的な文体で日本語で届けてください。星座の判定は変えないでください。本日の日付に基づいた実際の季節感を反映し、誕生日周辺の季節（例:山羊座なら冬至前後）と混同しないでください。200〜300文字程度で。`,
     build(body) {
       const sign = getSunSign(body.birthdate);
-      return { user: `生年月日：${body.birthdate}\n太陽星座：${sign}`, extra: { sign } };
+      const today = new Date().toISOString().split("T")[0];
+      return { user: `本日の日付：${today}\n生年月日：${body.birthdate}\n太陽星座：${sign}`, extra: { sign } };
     },
   },
 
@@ -1362,10 +1363,11 @@ const READINGS = {
 
   // ③ 守護星特定
   "guardian-star": {
-    system: `あなたは星の守護者です。以下の確定済みデータを元に、守護星の性質と今週の指針・開運アドバイスを神秘的な文体で日本語で届けてください。星座は変えないでください。300文字程度で。`,
+    system: `あなたは星の守護者です。以下の確定済みデータを元に、守護星の性質と今週の指針・開運アドバイスを神秘的な文体で日本語で届けてください。星座は変えないでください。本日の日付に基づいた実際の季節感を反映し、誕生日周辺の季節（例:山羊座なら冬至前後）と混同しないでください。300文字程度で。`,
     build(body) {
       const sign = getSunSign(body.birthdate);
-      return { user: `生年月日：${body.birthdate}\n太陽星座：${sign}`, extra: { sign } };
+      const today = new Date().toISOString().split("T")[0];
+      return { user: `本日の日付：${today}\n生年月日：${body.birthdate}\n太陽星座：${sign}`, extra: { sign } };
     },
   },
 
@@ -1514,12 +1516,13 @@ const READINGS = {
 
   // ⑮ 九宮格診断
   "nine-palace": {
-    system: `あなたは九宮格（風水×気学）の達人です。以下の確定済みデータを元に、今のあなたの運気の流れと開運の鍵を神秘的な文体で日本語で伝えてください。本命星は変えないでください。350文字程度で。`,
+    system: `あなたは九宮格（風水×気学）の達人です。以下の確定済みデータを元に、今のあなたの運気の流れと開運の鍵を神秘的な文体で日本語で伝えてください。本命星は変えないでください。本日の日付に基づいた実際の季節感を反映し、誕生日周辺の季節（例:山羊座なら冬至前後）と混同しないでください。350文字程度で。`,
     build(body) {
       const { selectedPalace, birthdate, honmeisei: clientHonmei, honmeiseiNum: clientNum } = body;
       const ki = clientHonmei ? { name: clientHonmei, num: clientNum } : getNineStarKi(birthdate);
+      const today = new Date().toISOString().split("T")[0];
       return {
-        user: `生年月日：${birthdate}、本命星：${ki.name}（${ki.num}）、直感で選んだ宮：${selectedPalace}`,
+        user: `本日の日付：${today}\n生年月日：${birthdate}、本命星：${ki.name}（${ki.num}）、直感で選んだ宮：${selectedPalace}`,
         extra: { honmeisei: ki.name, honmeiseiNum: ki.num },
       };
     },
