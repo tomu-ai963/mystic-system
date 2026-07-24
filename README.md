@@ -1,6 +1,11 @@
 # とむMYSTIC
 
-AI占いサービス。Cloudflare Worker（`tomu-mystic-worker.js`）＋静的フロントエンド（GitHub Pages）で構成。
+AI占いサービス。Cloudflare Worker＋静的フロントエンド（GitHub Pages）で構成。
+
+Worker はモジュール分割されており、`tomu-mystic-worker.js`（エントリ）から
+`shared.js` / `auth.js` / `stripe.js` / `readings-data.js` / `kanji-strokes.js` / `mcp.js`
+を import し、デプロイ時に wrangler 内蔵の esbuild が1ファイルにバンドルする。
+占いのプロンプト定義は `readings-data.js` の READINGS テーブルが唯一の定義源（MCPも参照）。
 
 - Worker: `https://tomu-mystic-worker.inverted-triangle-leef.workers.dev`
 - 構成の詳細（KV / D1 スキーマ）は `tomu-mystic-worker.js` 冒頭のコメントを参照
