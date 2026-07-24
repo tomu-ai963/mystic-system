@@ -62,6 +62,12 @@ const REQUIRED_TEXT_FIELDS = {
 
 const MAX_TEXT_LEN = 1000;
 
+// palm-reading の画像入力上限（デコード後バイト数）と MIME ホワイトリスト。
+// Vision API へのコスト増幅攻撃対策のため、必ず AI 呼び出し前（validateMysticBody）で検証する。
+// ホワイトリストは Claude Vision API が受理する media_type に一致させる。
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 // 共通バリデーション関数。type に応じて値の妥当性を真偽で返す。
 function validateInput(type, value) {
   switch (type) {
@@ -95,11 +101,23 @@ function validateInput(type, value) {
   }
 }
 
+// palm-reading の画像ペイロード検証。
+// サイズ（デコード後 5MB 以下）→ base64 文字種（data URL 接頭辞・空白は不可）→ MIME の順にチェック。
+function isValidImagePayload(imageBase64, mimeType) {
+  if (typeof imageBase64 !== "string" || imageBase64.length === 0) return false;
+  // デコード後サイズ = 文字数×3/4 − パディング（O(1)で算出し、巨大文字列への正規表現適用を避ける）
+  const padding = imageBase64.endsWith("==") ? 2 : imageBase64.endsWith("=") ? 1 : 0;
+  if (imageBase64.length * 3 / 4 - padding > MAX_IMAGE_BYTES) return false;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64)) return false;
+  // mimeType 未指定時は image/jpeg として扱う（READINGS["palm-reading"].build の既定値と一致）
+  return ALLOWED_IMAGE_MIME_TYPES.includes(mimeType === undefined ? "image/jpeg" : mimeType);
+}
+
 // 占いリクエスト（/api/mystic・/mystic/*）のボディ検証
 function validateMysticBody(action, body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return false;
 
-  // すべての文字列フィールドは MAX_TEXT_LEN 以内（手相の画像データ imageBase64 は除外）
+  // すべての文字列フィールドは MAX_TEXT_LEN 以内（手相の画像データ imageBase64 は isValidImagePayload で別途検証）
   for (const [key, v] of Object.entries(body)) {
     if (key === "imageBase64") continue;
     if (typeof v === "string" && v.length > MAX_TEXT_LEN) return false;
@@ -129,9 +147,9 @@ function validateMysticBody(action, body) {
     if (!body.colors.every(c => validateInput("text", c))) return false;
   }
 
-  // 手相：画像データ必須
+  // 手相：画像データ必須（デコード後 5MB 以下・MIME ホワイトリスト）
   if (action === "palm-reading") {
-    if (typeof body.imageBase64 !== "string" || body.imageBase64.length === 0) return false;
+    if (!isValidImagePayload(body.imageBase64, body.mimeType)) return false;
   }
 
   return true;
@@ -167,6 +185,7 @@ function isAllowedRedirectUrl(raw, selfOrigin) {
 
 const RATE_LIMITS = {
   magic: 5,     // /auth/request-magic-link : メアドあたり 5回/時
+  magicIp: 5,   // /auth/request-magic-link : IPあたり 5回/時（メアドを変えた爆撃・Resendクレジット消費対策）
   ai: 20,       // /api/mystic・/mystic/*    : ユーザーあたり 20回/時
   mailpref: 10, // /mail-pref POST           : ユーザーあたり 10回/時
   history: 60,  // /history/:index DELETE     : ユーザーあたり 60回/時
@@ -480,6 +499,11 @@ async function handleRequestMagicLink(request, env) {
   const email = typeof body.email === "string" ? body.email.toLowerCase().trim() : "";
   if (!validateInput("email", email)) {
     return jsonResponse({ error: "Invalid input" }, 400);
+  }
+  // レートリミット（IPあたり 5回/時）— メアドを変えながらの発行乱用をIP単位で遮断
+  const clientIp = request.headers.get("CF-Connecting-IP");
+  if (!await checkRateLimit(env, "magicIp", clientIp)) {
+    return jsonResponse({ error: "Too many requests" }, 429);
   }
   // レートリミット（メアドあたり 5回/時）— メール送信前に確認
   if (!await checkRateLimit(env, "magic", email)) {

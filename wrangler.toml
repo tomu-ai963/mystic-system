@@ -15,6 +15,9 @@ binding = "MYSTIC_DB"
 database_name = "tomu-mystic-db"
 database_id = "e28dad11-553e-415c-a309-7b12544f08e1"
 
+[observability]
+enabled = true
+
 [triggers]
 crons = ["0 * * * *"]
 
