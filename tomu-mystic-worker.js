@@ -21,6 +21,7 @@
 //   history:<userId>                 → 旧・占い結果履歴（D1へ移行。フォールバック/移行元として保持）
 //   rate:<type>:<id>:<YYYY-MM-DD-HH> → レートリミットカウンタ（expirationTtl=3600）
 //   stripe_sub:<subscriptionId>      → userId（Stripe継続課金/解約イベントの逆引き）
+//   stripe_event:<eventId>           → Webhookイベント冪等記録（expirationTtl=86400）
 //   feed:index / post:<id> / like:<postId>:<userId> → コミュニティ（みんなの占い結果）
 //
 // 占い種別の正規名（action）は ALLOWED_ACTIONS / READINGS のキーが正、
@@ -343,13 +344,18 @@ async function checkSubscription(userId, env) {
   } catch { return false; }
 }
 
+// POST /subscription/check（Bearer認証必須）
+// 認証ユーザー自身の課金状況のみ返す。無認証時代の互換で body.userId を受けるが、
+// 本人以外を指定した場合は 403（他人の課金状況を照会できるプライバシーリークの防止）。
 async function handleSubscriptionCheck(request, env) {
+  const authedUserId = await authenticate(request, env);
+  if (!authedUserId) return jsonResponse({ error: "認証が必要です" }, 401);
   let body;
-  try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid input" }, 400); }
-  if (!body || typeof body !== "object" || !isValidUserId(body.userId)) {
-    return jsonResponse({ error: "Invalid userId" }, 400);
+  try { body = await request.json(); } catch { body = {}; }
+  if (body && typeof body === "object" && body.userId !== undefined && body.userId !== authedUserId) {
+    return jsonResponse({ error: "Forbidden" }, 403);
   }
-  const isSubscribed = await checkSubscription(body.userId, env);
+  const isSubscribed = await checkSubscription(authedUserId, env);
   return jsonResponse({ subscribed: isSubscribed });
 }
 
@@ -1037,6 +1043,10 @@ async function handleStripeCheckout(request, env) {
 
 const STRIPE_SUB_PREFIX = "stripe_sub:";
 
+// Webhook イベントの冪等記録: stripe_event:<eventId> → "1"（TTL 24時間）
+const STRIPE_EVENT_PREFIX = "stripe_event:";
+const STRIPE_EVENT_TTL_SECONDS = 24 * 60 * 60;
+
 // 既存のサブスクリプション情報（userId 直キー）を読む。壊れていれば {}。
 async function getKvSubscription(env, userId) {
   try {
@@ -1167,32 +1177,53 @@ async function handleStripeWebhook(request, env) {
 
   const event = JSON.parse(body);
 
+  // 冪等化: 同一イベントID（Stripeの再送・リプレイ）は再処理しない。
+  // KV障害時は通過（各ハンドラは同一キーへの上書き書き込みなので二重処理しても実害が小さい）。
+  const eventKey = typeof event.id === "string" && event.id ? STRIPE_EVENT_PREFIX + event.id : null;
+  if (eventKey) {
+    try {
+      if (await env.MYSTIC_SUBSCRIPTIONS.get(eventKey)) {
+        return jsonResponse({ received: true, duplicate: true });
+      }
+    } catch { /* ignore */ }
+  }
+
   // ハンドラ内の例外はグローバルcatchで500になり、Stripe側の自動再送に乗る。
   const handler = STRIPE_EVENT_HANDLERS[event.type];
   if (handler) await handler(event.data?.object, env);
 
+  // 既読マークは処理成功後に書く（処理前に書くとハンドラ失敗→再送時にイベントを取りこぼす）
+  if (eventKey) {
+    try {
+      await env.MYSTIC_SUBSCRIPTIONS.put(eventKey, "1", { expirationTtl: STRIPE_EVENT_TTL_SECONDS });
+    } catch { /* ignore */ }
+  }
+
   return jsonResponse({ received: true });
 }
 
+// Stripe-Signature の許容時刻ずれ（前後5分）。超過した古い署名はリプレイとして拒否。
+const STRIPE_SIG_TOLERANCE_SECONDS = 300;
+
 async function verifyStripeSignature(payload, sigHeader, secret) {
   try {
-    const parts = sigHeader.split(",").reduce((acc, part) => {
-      const [k, v] = part.split("=");
-      acc[k.trim()] = v;
-      return acc;
-    }, {});
+    // ヘッダー形式: "t=<unix秒>,v1=<hex>,v1=<hex>,..."（シークレットのローテーション中は v1 が複数並ぶ）
+    const parts = sigHeader.split(",").map(p => {
+      const i = p.indexOf("=");
+      return [p.slice(0, i).trim(), p.slice(i + 1).trim()];
+    });
+    const t = parts.find(([k]) => k === "t")?.[1];
+    const v1s = parts.filter(([k]) => k === "v1").map(([, v]) => v);
+    if (!t || v1s.length === 0) return false;
 
-    const signedPayload = `${parts.t}.${payload}`;
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
-    const computed = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
-    return computed === parts.v1;
+    // リプレイ対策: タイムスタンプが許容幅を超えていたら署名計算前に拒否
+    const ts = parseInt(t, 10);
+    if (!Number.isFinite(ts)) return false;
+    if (Math.abs(Math.floor(Date.now() / 1000) - ts) > STRIPE_SIG_TOLERANCE_SECONDS) return false;
+
+    const computed = await hmacHex(secret, `${t}.${payload}`);
+    // 複数署名は全て検証し、いずれか一致でOK。比較はタイミングセーフ。
+    return v1s.some(v1 => timingSafeEqual(computed, v1));
   } catch {
     return false;
   }
