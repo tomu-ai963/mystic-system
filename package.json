@@ -1,0 +1,10 @@
+{
+  "name": "tomu-mystic",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "とむMYSTIC — Cloudflare Workers（占い30アプリ / MCP サーバー）",
+  "scripts": {
+    "scan:unresolved-refs": "node tools/scan-unresolved-refs.mjs"
+  }
+}
