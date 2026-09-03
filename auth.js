@@ -6,6 +6,7 @@ import {
   CORS_HEADERS, jsonResponse, htmlResponse,
   hmacHex, timingSafeEqual, b64urlEncode, b64urlDecode,
   validateInput, checkRateLimit, checkSubscription,
+  ALLOWED_REDIRECT_ORIGINS, escapeHtml,
 } from "./shared.js";
 
 // ============================================
@@ -19,7 +20,7 @@ import {
 const SESSION_PREFIX = "session:";
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;   // 7日
 const MAGIC_TOKEN_TTL_SECONDS = 15 * 60;        // 15分
-const ALLOWED_REDIRECT_ORIGINS = ["https://tomu-ai963.github.io"];
+// ALLOWED_REDIRECT_ORIGINS は shared.js が唯一の定義源（Stripe checkout と共用）
 const DEFAULT_REDIRECT_URL = "https://tomu-ai963.github.io/tomu-mystic/";
 
 // リダイレクト先を許可originに限定（オープンリダイレクト＋セッション漏洩の防止）

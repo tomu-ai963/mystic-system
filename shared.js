@@ -59,14 +59,27 @@ function isValidPlan(v) {
   return v === undefined || (typeof v === "string" && /^[a-z0-9_-]{1,32}$/i.test(v));
 }
 
+// リダイレクト許可オリジン（フロントの配信元）。Stripe の success/cancel と
+// マジックリンクの復帰先の両方が参照するため、shared.js を唯一の定義源とする。
+// （auth.js 側に置くと stripe.js → shared.js の参照が解決できない: cf. 6e556ce の分割事故）
+const ALLOWED_REDIRECT_ORIGINS = ["https://tomu-ai963.github.io"];
+
 // リダイレクトURL（Stripe success/cancel）: http(s) かつ許可オリジン or リクエスト自身のオリジンのみ。
 // 外部オリジンへの誘導（オープンリダイレクト／XSS）を弾く。
 function isAllowedRedirectUrl(raw, selfOrigin) {
-  try {
-    const u = new URL(raw);
-    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
-    return ALLOWED_REDIRECT_ORIGINS.includes(u.origin) || u.origin === selfOrigin;
-  } catch { return false; }
+  let u;
+  // try/catch は URL のパース失敗だけに限定する。判定本体まで包むと、
+  // 実装側のバグ（未定義参照など）まで「不正なURL」に化けて原因が隠れる。
+  try { u = new URL(raw); } catch { return false; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  return ALLOWED_REDIRECT_ORIGINS.includes(u.origin) || u.origin === selfOrigin;
+}
+
+// HTML エスケープ（メール本文・認証結果ページの文字列埋め込み用）
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
 }
 
 // ============================================
@@ -232,7 +245,8 @@ async function callClaudeVision(env, systemPrompt, imageBase64, mimeType = "imag
 
 export {
   CORS_HEADERS, MAX_TEXT_LEN, validateInput,
-  isValidUserId, isValidPlan, isAllowedRedirectUrl,
+  isValidUserId, isValidPlan, isAllowedRedirectUrl, ALLOWED_REDIRECT_ORIGINS,
+  escapeHtml,
   checkRateLimit, checkSubscription,
   b64urlEncode, b64urlDecode, hmacHex, timingSafeEqual,
   jsonResponse, htmlResponse,

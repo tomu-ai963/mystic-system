@@ -41,11 +41,14 @@ import {
   CORS_HEADERS, jsonResponse, htmlResponse,
   validateInput, MAX_TEXT_LEN,
   checkRateLimit, checkSubscription,
-  callClaude, callClaudeVision,
+  callClaude, callClaudeVision, escapeHtml,
 } from "./shared.js";
 import { authenticate, handleRequestMagicLink, handleVerify, handleLogout, handleMe } from "./auth.js";
 import { handleSubscriptionCheck, handleSubscriptionRegister, handleStripeCheckout, handleStripeWebhook } from "./stripe.js";
-import { READINGS, DAILY_MAIL_APPS, MAIL_APP_TO_ACTION } from "./readings-data.js";
+import {
+  READINGS, DAILY_MAIL_APPS, MAIL_APP_TO_ACTION,
+  getSunSign, TAROT_CARDS, RUNE_NAMES,
+} from "./readings-data.js";
 import { handleMcp } from "./mcp.js";
 
 // ============================================
@@ -761,12 +764,6 @@ async function generateMailReading(appId, today, env) {
   const data = await res.json().catch(() => ({}));
   if (!data || !data.result) throw new Error(data.error || "占い結果を取得できませんでした");
   return { title, body: data.result };
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[c]));
 }
 
 function buildDailyMailHtml(today, sections, greeting = "") {
