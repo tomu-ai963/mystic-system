@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>月相ジャーナル — とむMYSTIC</title>
+<link rel="manifest" href="moon-journal-manifest.json">
+<meta name="theme-color" content="#9b59b6">
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+<link rel="stylesheet" href="../../mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="../index.html" class="logo">✦ とむMYSTIC</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">📔</span>
+    <h1 class="app-title">月相ジャーナル</h1>
+    <p class="app-desc">今日の月相データから、AIが内省のための問いかけを届けます</p>
+  </div>
+  <div class="card">
+    <div style="text-align:center;padding:1rem 0;margin-bottom:1rem">
+      <div style="font-size:3rem;margin-bottom:.5rem" id="moon-phase-icon">🌙</div>
+      <div style="color:var(--muted);font-size:.85rem" id="today-date"></div>
+    </div>
+    <p style="color:var(--muted);font-size:.9rem;text-align:center;margin-bottom:1.5rem">
+      今日の月のエネルギーをチャネリングします。<br>心を静かにして受け取ってください。
+    </p>
+    <button class="submit-btn" id="submit-btn">月からのメッセージを受け取る</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ 月からの問いかけ</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="../mystic-free.js"></script>
+<script>
+// 月相を確定計算（基準：2000-01-06 新月）
+function getMoonPhase(){
+  const ref=Date.UTC(2000,0,6);
+  const diff=(Date.now()-ref)/86400000;
+  const phase=((diff%29.53)+29.53)%29.53;
+  const names=['新月','三日月','上弦の月','十日夜','満月','十六夜','下弦の月','晦日月'];
+  const icons=['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'];
+  const idx=Math.floor(phase/(29.53/8))%8;
+  return{name:names[idx],icon:icons[idx],age:Math.round(phase)};
+}
+window.onMysticLogin=()=>{
+  document.getElementById("app").style.display="block";
+  const now=new Date();
+  document.getElementById("today-date").textContent=now.toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
+  const mp=getMoonPhase();
+  document.getElementById("moon-phase-icon").textContent=mp.icon;
+};
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const today=new Date().toISOString().split("T")[0];
+  const mp=getMoonPhase();
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="月と繋がっています...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/moon-journal",{today,moonPhase:mp.name,moonAge:mp.age});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="月からのメッセージを受け取る";}
+});
+</script>
+</body>
+</html>

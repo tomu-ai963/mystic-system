@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>マヤ暦診断 — とむMYSTIC</title>
+<link rel="manifest" href="maya-calendar-manifest.json">
+<meta name="theme-color" content="#9b59b6">
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+<link rel="stylesheet" href="../../mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="../index.html" class="logo">✦ とむMYSTIC</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🌀</span>
+    <h1 class="app-title">マヤ暦診断</h1>
+    <p class="app-desc">ツォルキン暦の太陽の紋章から、AIがあなたの特性パターンを読み解きます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>生年月日</label>
+      <input type="date" id="birthdate"/>
+    </div>
+    <div id="calc-display" style="display:none;margin:.6rem 0;padding:.5rem .8rem;background:rgba(130,80,255,.08);border:1px solid rgba(130,80,255,.2);border-radius:.5rem;font-size:.85rem;color:#b8a4ff;"></div>
+    <button class="submit-btn" id="submit-btn">太陽の紋章を解読する</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ マヤの宇宙からのメッセージ</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="../mystic-free.js"></script>
+<script>
+function getMayaKin(birthdate) {
+  let [y, m, d] = birthdate.split('-').map(Number);
+
+  // うるう年の2/29はマヤ暦に存在しない → 3/1と同じKINにする
+  const isLeapDay = (m === 2 && d === 29);
+  if (isLeapDay) { m = 3; d = 1; }
+
+  // 2000/01/01を基点に日数差を計算
+  const base = Date.UTC(2000, 0, 1);
+  const target = Date.UTC(y, m - 1, d);
+  let diff = Math.round((target - base) / 86400000);
+
+  // うるう年2/29をスキップした分を補正（基準日と対象日の間にある2/29の数を引く）
+  const startYear = Math.min(y, 2000);
+  const endYear   = Math.max(y, 2000);
+  let leapCount = 0;
+  for (let ly = startYear; ly <= endYear; ly++) {
+    if ((ly % 4 === 0 && ly % 100 !== 0) || ly % 400 === 0) {
+      const leapDay = Date.UTC(ly, 1, 29); // 2/29
+      const s = Math.min(target, base);
+      const e = Math.max(target, base);
+      if (leapDay > s && leapDay <= e) leapCount++;
+    }
+  }
+  if (y >= 2000) diff -= leapCount;
+  else           diff += leapCount;
+
+  const kin = ((152 + diff) % 260 + 260) % 260 + 1;
+
+  const tones = ['磁気','月','電気','自己存在','倍音','リズム','共鳴',
+                 '銀河','太陽','惑星','スペクトル','水晶','宇宙'];
+  const seals = ['赤い龍','白い風','青い夜','黄色い種','赤い蛇','白い世界の橋渡し',
+                 '青い手','黄色い星','赤い月','白い犬','青い猿','黄色い人',
+                 '赤い空歩く者','白い魔法使い','青い鷲','黄色い戦士',
+                 '赤い地球','白い鏡','青い嵐','黄色い太陽'];
+
+  const wavespell = Math.floor((kin - 1) / 13) + 1;
+  const toneNumber = ((kin - 1) % 13) + 1;
+
+  return {
+    kin,
+    tone: tones[(kin - 1) % 13],
+    toneNumber,
+    seal: seals[(kin - 1) % 20],
+    wavespell,
+    wavespellSeal: seals[((wavespell - 1) * 13) % 20],
+    isLeapDay,
+  };
+}
+
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  const v=document.getElementById("birthdate").value;
+  if(!v){alert("生年月日を入力してください");return;}
+  const maya=getMayaKin(v);
+  const cd=document.getElementById("calc-display");
+  cd.textContent=`KIN：${maya.kin} ／ 太陽の紋章：${maya.seal} ／ ウェーブスペル：${maya.wavespellSeal}のウェーブスペル ／ 音：${maya.toneNumber}`;
+  cd.style.display="block";
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="宇宙の暦を読んでいます...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{
+    const d=await MysticAuth.callApi("/mystic/maya-calendar",{
+      birthdate:v,
+      kin:maya.kin,
+      tone:maya.tone,
+      toneNumber:maya.toneNumber,
+      seal:maya.seal,
+      wavespell:maya.wavespell,
+      wavespellSeal:maya.wavespellSeal,
+    });
+    rt.textContent=d.result;
+  }
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="太陽の紋章を解読する";}
+});
+</script>
+</body>
+</html>

@@ -5,6 +5,11 @@
   "type": "module",
   "description": "とむMYSTIC — Cloudflare Workers（占い30アプリ / MCP サーバー）",
   "scripts": {
-    "scan:unresolved-refs": "node tools/scan-unresolved-refs.mjs"
+    "scan:unresolved-refs": "node tools/scan-unresolved-refs.mjs",
+    "build:free": "node tools/build-free-pages.mjs",
+    "dev:free": "wrangler dev -c free/wrangler.free.toml",
+    "check:free-fidelity": "node tools/check-free-fidelity.mjs",
+    "scan:unresolved-refs:free": "node tools/scan-unresolved-refs.mjs free/wrangler.free.toml",
+    "test:free": "node tools/test-free-worker.mjs"
   }
 }
