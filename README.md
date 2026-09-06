@@ -163,13 +163,20 @@ ANTHROPIC_API_KEY=xxx npm run check:free-fidelity
 ### デプロイ（完了条件外・とむが実行）
 
 ```powershell
-npx wrangler kv namespace create FREE_KV      # 初回のみ。id を wrangler.free.toml に反映
 npx wrangler secret put FREE_ANTHROPIC_API_KEY -c free/wrangler.free.toml
 npx wrangler deploy -c free/wrangler.free.toml
 ```
 
 `FREE_ANTHROPIC_API_KEY` は**無料版専用に新規発行したキー**を使う。
 有料版と同じキーだと請求が混ざり、300回/日の超過を検知できない。
+
+KV namespace（`FREE_KV`）は 2026-09-06 に作成済みで、id は
+`free/wrangler.free.toml` に反映してある。作り直す必要はない。
+再作成が要る場合のみ `npx wrangler kv namespace create FREE_KV -c free/wrangler.free.toml`。
+
+> 無料版のデプロイに合わせて**有料版の再デプロイも要る**。
+> `mystic-validation.js` の切り出しとプライバシーポリシー修正で
+> `tomu-mystic-worker.js` 側も変わっているため。
 
 ### 緊急停止
 

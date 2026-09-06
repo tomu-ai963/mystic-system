@@ -15,12 +15,12 @@ compatibility_date = "2024-01-01"
 account_id = "b6815ad2ee3097cc0f9e79b8536776b9"
 
 # 上限カウンタと緊急停止スイッチの保管先。
-# ※ この id は未作成のプレースホルダ。デプロイ前にとむが作成して差し替える:
-#     npx wrangler kv namespace create FREE_KV
-#   ローカル（wrangler dev）は実 KV に触らないため、この値のままで動作確認できる。
+# 2026-09-06 に `npx wrangler kv namespace create FREE_KV` で作成済み（title: FREE_KV）。
+# 有料版の MYSTIC_SUBSCRIPTIONS とは別 namespace。無料版のカウンタが
+# 有料版のセッションやサブスク情報と同じ場所に載らないようにするため、統合しない。
 [[kv_namespaces]]
 binding = "FREE_KV"
-id = "REPLACE_ME_AFTER_kv_namespace_create"
+id = "d31cfa9e9a0849a19eb32d95a522263c"
 
 [observability]
 enabled = true
