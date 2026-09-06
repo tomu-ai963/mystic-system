@@ -31,15 +31,22 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // ---- wrangler.toml のエントリポイントを取得 ----------------------
-function entryFromWrangler() {
-  const toml = fs.readFileSync(path.join(ROOT, "wrangler.toml"), "utf8");
+function entryFromWrangler(configRel = "wrangler.toml") {
+  const configPath = path.join(ROOT, configRel);
+  const toml = fs.readFileSync(configPath, "utf8");
   // 先頭が [section] でない位置の main = "..." を拾う（[[queues]] 等の中は見ない）
   for (const line of toml.split("\n")) {
     if (/^\s*\[/.test(line)) break;
     const m = line.match(/^\s*main\s*=\s*["']([^"']+)["']/);
-    if (m) return m[1];
+    // wrangler の main は「設定ファイルからの相対パス」。
+    // free/wrangler.free.toml のように別ディレクトリの設定でも辿れるようにする。
+    if (m) {
+      return path
+        .relative(ROOT, path.resolve(path.dirname(configPath), m[1]))
+        .split(path.sep).join("/");
+    }
   }
-  throw new Error("wrangler.toml に main が見つかりません");
+  throw new Error(`${configRel} に main が見つかりません`);
 }
 
 // ---- import 文の解析 --------------------------------------------
@@ -128,7 +135,8 @@ function codeSurface(src) {
 }
 
 // ---- 走査 --------------------------------------------------------
-const entry = entryFromWrangler();
+// 引数で別の wrangler 設定を指定できる（例: 無料版 free/wrangler.free.toml）
+const entry = entryFromWrangler(process.argv[2] || "wrangler.toml");
 const modules = buildGraph(entry);
 
 // 各モジュールのトップレベル宣言 = このリポジトリの自作シンボル

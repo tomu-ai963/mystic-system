@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>チャクラ診断 — とむMYSTIC</title>
+<link rel="manifest" href="chakra-check-manifest.json">
+<meta name="theme-color" content="#9b59b6">
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+<link rel="stylesheet" href="../../mystic.css"/>
+</head>
+<body>
+<header>
+  <a href="../index.html" class="logo">✦ とむMYSTIC</a>
+  <button class="logout-btn" id="logout-btn">ログアウト</button>
+</header>
+<main id="app" style="display:none">
+  <div class="app-hero">
+    <span class="app-icon">🔮</span>
+    <h1 class="app-title">チャクラ診断</h1>
+    <p class="app-desc">質問への回答から、AIが7つのチャクラの状態傾向を分析し、セルフケアのヒントを届けます</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label>最近気になる体の部位・症状は？</label>
+      <div class="options-grid" id="q1-grid"></div>
+    </div>
+    <div class="field-group">
+      <label>感情的に詰まっていると感じる部分は？</label>
+      <div class="options-grid" id="q2-grid"></div>
+    </div>
+    <div class="field-group">
+      <label>今最も意識したい人生のテーマは？</label>
+      <div class="options-grid" id="q3-grid"></div>
+    </div>
+    <div id="calc-display" style="display:none;margin:.6rem 0;padding:.5rem .8rem;background:rgba(130,80,255,.08);border:1px solid rgba(130,80,255,.2);border-radius:.5rem;font-size:.85rem;color:#b8a4ff;line-height:1.6;"></div>
+    <button class="submit-btn" id="submit-btn">チャクラを診断する</button>
+    <div id="result" class="result hidden">
+      <div class="result-label">▷ チャクラ診断結果</div>
+      <div id="result-text"></div>
+    </div>
+  </div>
+</main>
+<script src="../mystic-free.js"></script>
+<script>
+// 症状から対応チャクラを確定
+const CHAKRA_MAP={
+  "頭・目・耳":   {num:"第6・7",name:"サードアイ／クラウンチャクラ"},
+  "喉・首":       {num:"第5",  name:"スロートチャクラ"},
+  "胸・心臓":     {num:"第4",  name:"ハートチャクラ"},
+  "みぞおち・胃": {num:"第3",  name:"ソーラープレクサスチャクラ"},
+  "お腹・腸":     {num:"第2",  name:"サクラルチャクラ"},
+  "下腹部":       {num:"第1",  name:"ルートチャクラ"},
+  "足・膝・腰":   {num:"第1",  name:"ルートチャクラ"},
+};
+window.onMysticLogin=()=>document.getElementById("app").style.display="block";
+document.getElementById("logout-btn").addEventListener("click",()=>{MysticAuth.logout();location.reload();});
+
+function makeOpts(gid,opts,cb){
+  const g=document.getElementById(gid);
+  opts.forEach(o=>{
+    const btn=document.createElement("button");
+    btn.className="opt-btn";btn.textContent=o;
+    btn.addEventListener("click",()=>{
+      g.querySelectorAll(".opt-btn").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");cb(o);
+    });
+    g.appendChild(btn);
+  });
+}
+let a1=null,a2=null,a3=null;
+makeOpts("q1-grid",["頭・目・耳","喉・首","胸・心臓","みぞおち・胃","お腹・腸","下腹部","足・膝・腰"],v=>a1=v);
+makeOpts("q2-grid",["自己表現できない","愛されているか不安","自信が持てない","感情が爆発する","お金や安全への不安","目標が定まらない","孤独感・繋がれない"],v=>a2=v);
+makeOpts("q3-grid",["直感と霊性を開く","コミュニケーションと表現","無条件の愛と癒し","意志と行動力","感情と創造性","安心と豊かさ","大地との繋がりと安定"],v=>a3=v);
+
+document.getElementById("submit-btn").addEventListener("click",async()=>{
+  if(!a1||!a2||!a3){alert("すべての質問に答えてください");return;}
+  const chakra=CHAKRA_MAP[a1]||{num:"不明",name:"不明"};
+  const cd=document.getElementById("calc-display");
+  cd.textContent=`特定チャクラ：${chakra.name}（${chakra.num}） ／ 感情：${a2} ／ テーマ：${a3}`;cd.style.display="block";
+  const btn=document.getElementById("submit-btn");
+  const res=document.getElementById("result");
+  const rt=document.getElementById("result-text");
+  btn.disabled=true;btn.textContent="チャクラを診ています...";
+  res.classList.remove("hidden");rt.innerHTML='<span class="loading">✦ ✦ ✦</span>';
+  try{const d=await MysticAuth.callApi("/mystic/chakra-check",{answers:{q1:a1,q2:a2,q3:a3},chakra:chakra.name,chakraNum:chakra.num});rt.textContent=d.result;}
+  catch(e){rt.style.color="var(--error)";rt.textContent="エラー: "+e.message;}
+  finally{btn.disabled=false;btn.textContent="チャクラを診断する";}
+});
+</script>
+</body>
+</html>

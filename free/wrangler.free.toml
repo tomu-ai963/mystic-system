@@ -1,0 +1,33 @@
+# ============================================
+# とむMYSTIC 無料版 Worker の設定
+#
+# 有料版（ルートの wrangler.toml）とは別 Worker として動く。
+# Stripe / 認証 / D1 / Queues / Cron のバインディングは意図的に持たない
+# （無料版に持たせる理由がなく、持たせれば事故の面が広がるだけのため）。
+#
+# デプロイ:  npx wrangler deploy -c free/wrangler.free.toml
+# ローカル:  npm run dev:free
+# ============================================
+
+name = "tomu-mystic-free-worker"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+account_id = "b6815ad2ee3097cc0f9e79b8536776b9"
+
+# 上限カウンタと緊急停止スイッチの保管先。
+# 2026-09-06 に `npx wrangler kv namespace create FREE_KV` で作成済み（title: FREE_KV）。
+# 有料版の MYSTIC_SUBSCRIPTIONS とは別 namespace。無料版のカウンタが
+# 有料版のセッションやサブスク情報と同じ場所に載らないようにするため、統合しない。
+[[kv_namespaces]]
+binding = "FREE_KV"
+id = "d31cfa9e9a0849a19eb32d95a522263c"
+
+[observability]
+enabled = true
+
+# 必要なシークレット（wrangler.toml には書かず wrangler secret put で登録する）:
+#   FREE_ANTHROPIC_API_KEY … 無料版専用に新規発行した Anthropic API キー。
+#                            有料版の ANTHROPIC_API_KEY とは必ず別にする。
+#                            同じキーだと請求が混ざり、300回/日の超過を検知できない。
+#
+#   npx wrangler secret put FREE_ANTHROPIC_API_KEY -c free/wrangler.free.toml

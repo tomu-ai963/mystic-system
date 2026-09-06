@@ -88,3 +88,102 @@ Cloudflare Dashboard > Workers & Pages > tomu-mystic-worker > Logs で参照。
 - フロント: `community/index.html`（静的ページ、GitHub Pages 配信）
 
 そのため community 用の個別 wrangler.toml / デプロイ手順は存在しない。
+
+
+## 無料版（tomu-mystic-free-worker）
+
+29種類の占いを登録不要で試せるお試し版。**同じリポジトリの別 Worker** として動く。
+
+- リポジトリを分けない理由: READINGS（30占いのプロンプト定義）・`apps/*.html`・
+  `mystic.css` を丸ごと二重管理することになり、有料版のプロンプト修正が
+  無料版に届かなくなる。無料版は有料版の広告塔なので、体験版と本製品が
+  別物になるのが一番まずい。
+- Worker を分ける理由: 無料版は未認証で叩かれるため、濫用（CPU・レート・
+  API コスト）が課金ユーザーに波及しないよう隔離する。Stripe / 認証 /
+  D1 / Queues のバインディングも Secrets も持たせない。
+
+### 有料版との意図的な差分
+
+| | 有料版 | 無料版 |
+|---|---|---|
+| モデル | `claude-sonnet-5` | `claude-haiku-4-5` |
+| 認証 | マジックリンク + サブスク | なし（localStorage の匿名ID） |
+| 占い数 | 30 | 29（Vision の `palm-reading` は除外） |
+| 回数 | 20回/時 | 初日5回・以降3回/日（JST 0時リセット） |
+| 全体上限 | なし | 300回/日（コスト天井・概算 約3,100円/月） |
+| KV 障害時 | 通す（fail-open・可用性優先） | **止める（fail-closed）** |
+| 履歴・メール・コミュニティ・MCP | あり | なし |
+
+fail-open / fail-closed が逆なのは意図的。有料版はレート制限が「濫用対策」だが、
+無料版ではレート制限が**そのままコストの天井**なので、判定できないなら通さない。
+
+### 構成
+
+```
+free/worker.js            無料版 Worker（../readings-data.js の READINGS を共有）
+free/mystic-free.js       mystic-login.js の差し替え（同じ外部インターフェース）
+free/wrangler.free.toml   無料版のデプロイ設定
+free/index.html           生成物（触らない）
+free/apps/*.html          生成物（触らない）
+mystic-validation.js      入力検証。有料版と無料版の両方が import する
+```
+
+`mystic-validation.js` は有料版 `tomu-mystic-worker.js` から切り出したもの。
+無料版は認証を持たない分、入力検証がコスト増幅攻撃への最初の防御線になるため、
+実装を分けない（緩いほうが必ず狙われる）。
+
+### コマンド
+
+```bash
+npm run build:free                # apps/ と index.html から free/ を生成
+npm run test:free                 # 上限・fail-closed・入力検証の動作確認（API を叩かない）
+npm run scan:unresolved-refs      # 有料版の未解決参照スキャン
+npm run scan:unresolved-refs:free # 無料版の未解決参照スキャン
+npm run dev:free                  # ローカル起動
+```
+
+`free/apps/` と `free/index.html` は `tools/build-free-pages.mjs` の生成物。
+手で編集すると次回の生成で消える。占いを増やしたら `npm run build:free` を実行する。
+
+### モデルを変えるときは必ず確定値チェックを通す
+
+```bash
+ANTHROPIC_API_KEY=xxx npm run check:free-fidelity
+```
+
+このアーキテクチャは「星座・画数・干支・キン番号を JS で確定計算し、AI には
+変えるなと命じる」設計（`ABSOLUTE_RULE`）で、`apps/*.html` は計算値を
+`calc-display` として AI の文章のすぐ隣に表示する。安いモデルがこのルールを
+守れないと、画面上で一目で分かる形で矛盾する。**コストだけを見てモデルを
+落とすと、この破綻を見落とす。**
+
+`check:free-fidelity` は29件について「確定値が出力に残っているか」と
+「同じカテゴリの別の値にすり替わっていないか」を検査する（実際に API を叩くため課金される）。
+
+### デプロイ（完了条件外・とむが実行）
+
+```powershell
+npx wrangler secret put FREE_ANTHROPIC_API_KEY -c free/wrangler.free.toml
+npx wrangler deploy -c free/wrangler.free.toml
+```
+
+`FREE_ANTHROPIC_API_KEY` は**無料版専用に新規発行したキー**を使う。
+有料版と同じキーだと請求が混ざり、300回/日の超過を検知できない。
+
+KV namespace（`FREE_KV`）は 2026-09-06 に作成済みで、id は
+`free/wrangler.free.toml` に反映してある。作り直す必要はない。
+再作成が要る場合のみ `npx wrangler kv namespace create FREE_KV -c free/wrangler.free.toml`。
+
+> 無料版のデプロイに合わせて**有料版の再デプロイも要る**。
+> `mystic-validation.js` の切り出しとプライバシーポリシー修正で
+> `tomu-mystic-worker.js` 側も変わっているため。
+
+### 緊急停止
+
+KV に `kill` = `"1"` を置くと全リクエストが止まる（デプロイ不要・即時）。
+
+```powershell
+npx wrangler kv key put --binding=FREE_KV kill 1 -c free/wrangler.free.toml --remote
+```
+
+「無料版は予告なく終了する場合があります」と告知したうえで、このスイッチで切る運用。

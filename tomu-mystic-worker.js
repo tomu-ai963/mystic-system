@@ -39,7 +39,7 @@
 
 import {
   CORS_HEADERS, jsonResponse, htmlResponse,
-  validateInput, MAX_TEXT_LEN,
+  validateInput,
   checkRateLimit, checkSubscription,
   callClaude, callClaudeVision, escapeHtml,
 } from "./shared.js";
@@ -50,93 +50,10 @@ import {
   getSunSign, TAROT_CARDS, RUNE_NAMES,
 } from "./readings-data.js";
 import { handleMcp } from "./mcp.js";
+import {
+  ALLOWED_ACTIONS, validateMysticBody,
+} from "./mystic-validation.js";
 
-// ============================================
-// 入力バリデーション
-// 失敗時は 400 { error: "Invalid input" } を返し、詳細理由は開示しない。
-// ============================================
-
-// /api/mystic で受理する action（appId）の許可リスト
-const ALLOWED_ACTIONS = new Set([
-  "star-reading", "numerology", "guardian-star", "nine-star-ki", "maya-calendar",
-  "animal-fortune", "name-fortune", "biorhythm", "moon-sign", "eastern-stars",
-  "horoscope-deep", "tarot", "rune-reading", "oracle-cards", "nine-palace",
-  "past-life", "past-profession", "soul-mission", "spirit-animal", "aura-reading",
-  "chakra-check", "oracle-message", "dream-decoder", "soul-compatibility", "dream-colors",
-  "moon-journal", "cosmic-message", "lucky-color", "crystal-guide", "palm-reading",
-]);
-
-// action ごとの「必須かつ空文字NGのテキスト項目」
-const REQUIRED_TEXT_FIELDS = {
-  "animal-fortune": ["animal"],
-  "name-fortune": ["fullName"],
-  "tarot": ["card"],
-  "rune-reading": ["rune"],
-  "oracle-cards": ["theme", "card"],
-  "oracle-message": ["feeling"],
-  "dream-decoder": ["dream"],
-  "crystal-guide": ["currentState"],
-};
-
-// palm-reading の画像入力上限（デコード後バイト数）と MIME ホワイトリスト。
-// Vision API へのコスト増幅攻撃対策のため、必ず AI 呼び出し前（validateMysticBody）で検証する。
-// ホワイトリストは Claude Vision API が受理する media_type に一致させる。
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-
-// palm-reading の画像ペイロード検証。
-// サイズ（デコード後 5MB 以下）→ base64 文字種（data URL 接頭辞・空白は不可）→ MIME の順にチェック。
-function isValidImagePayload(imageBase64, mimeType) {
-  if (typeof imageBase64 !== "string" || imageBase64.length === 0) return false;
-  // デコード後サイズ = 文字数×3/4 − パディング（O(1)で算出し、巨大文字列への正規表現適用を避ける）
-  const padding = imageBase64.endsWith("==") ? 2 : imageBase64.endsWith("=") ? 1 : 0;
-  if (imageBase64.length * 3 / 4 - padding > MAX_IMAGE_BYTES) return false;
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64)) return false;
-  // mimeType 未指定時は image/jpeg として扱う（READINGS["palm-reading"].build の既定値と一致）
-  return ALLOWED_IMAGE_MIME_TYPES.includes(mimeType === undefined ? "image/jpeg" : mimeType);
-}
-
-// 占いリクエスト（/api/mystic・/mystic/*）のボディ検証
-function validateMysticBody(action, body) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
-
-  // すべての文字列フィールドは MAX_TEXT_LEN 以内（手相の画像データ imageBase64 は isValidImagePayload で別途検証）
-  for (const [key, v] of Object.entries(body)) {
-    if (key === "imageBase64") continue;
-    if (typeof v === "string" && v.length > MAX_TEXT_LEN) return false;
-    if (Array.isArray(v)) {
-      for (const item of v) {
-        if (typeof item === "string" && item.length > MAX_TEXT_LEN) return false;
-      }
-    }
-  }
-
-  // 生年月日（存在する場合のみ・未来日／不正形式NG）
-  for (const key of ["birthdate", "birthdate1", "birthdate2"]) {
-    if (body[key] !== undefined && !validateInput("birthdate", body[key])) return false;
-  }
-
-  // 必須テキスト（空文字NG・1000文字以上NG）
-  const requiredText = REQUIRED_TEXT_FIELDS[action];
-  if (requiredText) {
-    for (const field of requiredText) {
-      if (!validateInput("text", body[field])) return false;
-    }
-  }
-
-  // 夢の色彩：colors は非空の文字列配列
-  if (action === "dream-colors") {
-    if (!Array.isArray(body.colors) || body.colors.length === 0) return false;
-    if (!body.colors.every(c => validateInput("text", c))) return false;
-  }
-
-  // 手相：画像データ必須（デコード後 5MB 以下・MIME ホワイトリスト）
-  if (action === "palm-reading") {
-    if (!isValidImagePayload(body.imageBase64, body.mimeType)) return false;
-  }
-
-  return true;
-}
 
 export default {
   async fetch(request, env, ctx) {
@@ -1072,16 +989,28 @@ ${MYSTIC_LEGAL_STYLE}
 ${MYSTIC_LEGAL_NAV}
 <main>
   <h1>✦ プライバシーポリシー</h1>
-  <p class="effective-date">制定日：2026年1月1日</p>
+  <p class="effective-date">制定日：2026年1月1日<br/>最終改定日：2026年9月6日</p>
 
   <p>とむMYSTIC（以下「本サービス」）は、ユーザーの個人情報の取り扱いについて以下のとおり定めます。</p>
 
   <h2>1. 収集する個人情報</h2>
   <p>本サービスは、以下の情報を収集する場合があります。</p>
   <ul>
-    <li>メールアドレス（ログイン・サブスクリプション管理・お問い合わせ時）</li>
+    <li>メールアドレス（ログイン・サブスクリプション管理・毎朝のメール配信・お問い合わせ時）</li>
+    <li>氏名またはニックネーム（プロフィールに登録された場合。占い結果での呼びかけ、およびコミュニティ機能の表示名に使用します）</li>
+    <li>生年月日（プロフィールに登録された場合、および占いの入力として送信された場合）</li>
+    <li>占いの入力内容および生成された占い結果（履歴として保存します）</li>
+    <li>IPアドレス（ログイン用リンクの発行時。不正利用の検知にのみ使用し、1時間で自動的に削除されます）</li>
     <li>決済関連情報（Stripe社を通じた処理。カード番号等はStripe社が管理し、本サービスは保持しません）</li>
     <li>サービス利用状況（AI機能の利用回数・プラン情報）</li>
+  </ul>
+
+  <p>登録不要でご利用いただける無料版では、以下の情報のみを取り扱います。メールアドレス・氏名は収集せず、占い結果もサーバーに保存しません。</p>
+  <ul>
+    <li>匿名ID（ご利用のブラウザ内で生成し、ブラウザに保存される識別子。利用回数の管理にのみ使用し、個人を特定するものではありません）</li>
+    <li>IPアドレスのハッシュ値（同一回線からの過剰な利用を防ぐため。IPアドレスそのものは保存しません）</li>
+    <li>利用回数</li>
+    <li>占いの入力内容（AI機能の呼び出しに使用します。サーバーには保存しません）</li>
   </ul>
 
   <h2>2. 利用目的</h2>
@@ -1104,14 +1033,22 @@ ${MYSTIC_LEGAL_NAV}
   <ul>
     <li>Stripe, Inc.（決済処理）</li>
     <li>Anthropic, PBC（AI機能）</li>
-    <li>Cloudflare, Inc.（インフラ・ホスティング）</li>
+    <li>Cloudflare, Inc.（インフラ・ホスティング・データ保管）</li>
+    <li>Resend（メール送信。ログイン用リンク・毎朝のメール配信）</li>
   </ul>
 
-  <h2>4. Cookie・アクセス解析</h2>
+  <h2>4. Cookie・ローカルストレージ・アクセス解析</h2>
+  <p>本サービスはCookieを使用していません。ログイン状態の保持（有料版）および匿名ID（無料版）は、ご利用のブラウザのローカルストレージに保存されます。これらはブラウザの設定から削除できます。</p>
   <p>本サービス独自のアクセス解析ツールは現時点では導入していません。</p>
 
-  <h2>5. 個人情報の管理</h2>
-  <p>収集した個人情報は、Cloudflare Workers KVにて管理し、適切なアクセス制御を実施しています。サービス退会後、不要となった情報は速やかに削除します。</p>
+  <h2>5. 個人情報の管理・保存期間</h2>
+  <p>収集した個人情報は、Cloudflare Workers KV および Cloudflare D1（占い結果の履歴）にて管理し、適切なアクセス制御を実施しています。</p>
+  <ul>
+    <li>IPアドレス（ログイン用リンクの発行時）：1時間で自動的に削除されます</li>
+    <li>占い結果の履歴：ユーザーごとに最新30件までを保持し、超過分は自動的に削除されます</li>
+    <li>無料版の匿名ID・IPアドレスのハッシュ値・利用回数：最長30日で自動的に削除されます</li>
+  </ul>
+  <p>サービス退会後、不要となった情報は速やかに削除します。</p>
 
   <h2>6. ポリシーの変更</h2>
   <p>本ポリシーの内容は、法令の改正やサービス変更に応じて予告なく変更する場合があります。変更後の内容は、本ページに掲載した時点から効力を生じます。</p>
