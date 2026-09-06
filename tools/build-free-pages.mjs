@@ -11,8 +11,14 @@
 //   1. script src の ../mystic-login.js → ../mystic-free.js（差し替えの本体）
 //   2. ../mystic.css → ../../mystic.css（free/apps/ は1階層深いため）
 //   3. palm-reading（Vision）は無料版の対象外なので除外
-//   4. *-manifest.json を併せてコピー
-//   5. プライバシーポリシーへのフッターを注入
+//   4. *-manifest.json を併せてコピーし、中の ../common/ を ../../common/ に直す
+//   5. apps/sw.js を併せてコピー
+//   6. プライバシーポリシーへのフッターを注入
+//
+// 4 と 5 は「free/apps/ が apps/ より1階層深い」ことの帰結で、2 と同じ問題。
+// HTML の相対パスだけ直して JSON と sw.js を放置していたため、無料版では
+// PWA アイコン29件と Service Worker がまとめて 404 になっていた。
+// apps/ 配下に新しい種類のファイルを足すときは、ここも見ること。
 // ============================================
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync } from "node:fs";
@@ -43,6 +49,8 @@ mkdirSync(OUT, { recursive: true });
 
 const pages = readdirSync(APPS).filter(f => f.endsWith(".html"));
 let written = 0;
+let manifests = 0;
+let iconsFixed = 0;
 const skipped = [];
 
 for (const file of pages) {
@@ -65,14 +73,36 @@ for (const file of pages) {
 
   writeFileSync(join(OUT, file), out);
 
-  // マニフェストがあれば併せてコピー
+  // マニフェストがあれば併せてコピー。アイコンの ../common/ は
+  // free/apps/ から見ると1階層足りず、そのままだと 404 になる。
   const manifest = `${id}-manifest.json`;
+  let manifestSrc = null;
   try {
-    writeFileSync(join(OUT, manifest), readFileSync(join(APPS, manifest), "utf8"));
+    manifestSrc = readFileSync(join(APPS, manifest), "utf8");
   } catch { /* マニフェストが無いページは無視 */ }
+
+  if (manifestSrc !== null) {
+    writeFileSync(join(OUT, manifest), manifestSrc.replaceAll("../common/", "../../common/"));
+    manifests++;
+    if (manifestSrc.includes("../common/")) iconsFixed++;
+  }
 
   written++;
 }
+
+// ── Service Worker。有料版は apps/sw.js を実体で持っており、各ページが
+// 相対で register('sw.js') する。無料版でも同じ構造を保つためコピーする。
+// 登録先をルートの /sw.js に向ける手もあるが、それだと1つの SW が有料版と
+// 無料版の両方を支配することになるので、有料版と同じ形を複製するほうを採る。
+// （SHELL の一部が別スコープで404になる件は sw.js 側が allSettled で織り込み済み）
+const swSrc = join(APPS, "sw.js");
+let sw;
+try {
+  sw = readFileSync(swSrc, "utf8");
+} catch {
+  throw new Error("apps/sw.js が見つかりません。各ページが register('sw.js') するため必須");
+}
+writeFileSync(join(OUT, "sw.js"), sw);
 
 // ── free/index.html を index.html の hub-card 行から生成する。
 // カード一覧を手書きすると、占いを増やしたときに無料版だけ古くなる。
@@ -143,4 +173,5 @@ document.addEventListener("DOMContentLoaded", () => {
 writeFileSync(join(ROOT, "free", "index.html"), freeIndex);
 
 console.log(`無料版フロント生成: ${written} ページ + index.html`);
+console.log(`マニフェスト: ${manifests} 件（うちアイコンのパスを補正 ${iconsFixed} 件）+ sw.js`);
 console.log(`除外: ${skipped.join(", ") || "なし"}`);
