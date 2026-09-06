@@ -4,3 +4,5 @@ node_modules/
 privacy.html
 tokushoho.html
 .dev.vars
+.dev.vars*
+*.bak
