@@ -12,6 +12,7 @@
 //   2. ../mystic.css → ../../mystic.css（free/apps/ は1階層深いため）
 //   3. palm-reading（Vision）は無料版の対象外なので除外
 //   4. *-manifest.json を併せてコピー
+//   5. プライバシーポリシーへのフッターを注入
 // ============================================
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync } from "node:fs";
@@ -24,6 +25,18 @@ const OUT = join(ROOT, "free", "apps");
 
 // 無料版から外す占い（Vision はコスト増幅と濫用リスクが別格）
 const EXCLUDED = new Set(["palm-reading"]);
+
+// プライバシーポリシーは有料版 Worker が配信している（無料版 Worker は API 専用）。
+const PRIVACY_URL = "https://tomu-mystic-worker.inverted-triangle-leef.workers.dev/legal/privacy";
+
+// 無料版は登録不要でも匿名IDとIPハッシュを扱うので、どのページからでも
+// ポリシーに到達できる必要がある。有料版の apps/*.html はフッターを持たず
+// （導線はハブの index.html だけ）、無料版は個別ページに直接来られるため、
+// ハブに1本置くだけでは届かない。生成時に全ページへ注入する。
+const FREE_FOOTER = `<footer style="text-align:center;padding:1.4rem 1rem 2rem;font-size:.78rem;line-height:1.9;color:var(--muted)">
+  <a href="${PRIVACY_URL}" target="_blank" rel="noopener" style="color:var(--muted);border-bottom:1px solid var(--border)">プライバシーポリシー</a>
+</footer>
+`;
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -41,9 +54,14 @@ for (const file of pages) {
     throw new Error(`${file}: ../mystic-login.js が見つかりません（構造が変わった可能性）`);
   }
 
+  if (!src.includes("</body>")) {
+    throw new Error(`${file}: </body> が見つかりません（フッターを注入できない）`);
+  }
+
   const out = src
     .replaceAll("../mystic-login.js", "../mystic-free.js")
-    .replaceAll("../mystic.css", "../../mystic.css");
+    .replaceAll("../mystic.css", "../../mystic.css")
+    .replace("</body>", `${FREE_FOOTER}</body>`);
 
   writeFileSync(join(OUT, file), out);
 
@@ -101,7 +119,8 @@ ${cards.map(c => "    " + c).join("\n")}
   <div class="mf-foot">
     無料版は予告なく終了する場合があります。<br>
     毎朝メール・履歴保存・回数無制限は
-    <a href="https://tomu-ai963.github.io/tomu-mystic/">とむMYSTIC（有料版）</a>で。
+    <a href="https://tomu-ai963.github.io/tomu-mystic/">とむMYSTIC（有料版）</a>で。<br>
+    <a href="${PRIVACY_URL}" target="_blank" rel="noopener">プライバシーポリシー</a>
   </div>
 </main>
 <script src="./mystic-free.js"></script>
